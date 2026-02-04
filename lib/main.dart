@@ -1,8 +1,32 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'about_page.dart';
 import 'settings.dart';
 import 'theme_manager.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class AppConstants {
+  static const String lastUpdate = '26-02-04-20-50';
+  static const String version = '1.0.0.0';
+  static const String build = '1000';
+
+  static Future<Map<String, dynamic>?> fetchVersionInfo() async {
+    try {
+      final response = await http.get(
+          Uri.parse('https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json')
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+    } catch (e) {
+      debugPrint('获取版本信息失败: $e');
+    }
+    return null;
+  }
+}
 
 void main() {
   runApp(const EmuTravel());
@@ -41,7 +65,7 @@ class _EmuTravelState extends State<EmuTravel> {
   @override
   Widget build(BuildContext context) {
     return AnimatedTheme(
-      data: _isDarkMode
+      data: _isDarkMode  // 修复：添加 data: 参数
           ? ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
@@ -84,16 +108,28 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
+  // 定义每个页面的昵称
+  String get _currentPageNickname {
+    switch (_currentIndex) {
+      case 0:
+        return '旅行规划中心';
+      case 1:
+        return '关于页面';
+      case 2:
+        return '个性化设置';
+      default:
+        return 'EmuTravel';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('EmuTravel'),
+        title: Text(_currentPageNickname), // 动态显示页面昵称
         centerTitle: true,
       ),
-      body: _currentIndex == 0
-          ? const HomeScreen()
-          : SettingsScreen(themeManager: widget.themeManager),
+      body: _getCurrentPage(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (int index) {
@@ -107,6 +143,10 @@ class _HomePageState extends State<HomePage> {
             label: '首页',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.info),
+            label: '关于',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: '设置',
           ),
@@ -116,5 +156,19 @@ class _HomePageState extends State<HomePage> {
         unselectedItemColor: Colors.grey,
       ),
     );
+  }
+
+  // 根据索引返回对应的页面
+  Widget _getCurrentPage() {
+    switch (_currentIndex) {
+      case 0:
+        return const HomeScreen();
+      case 1:
+        return const AboutPage();  // 修复：移除 themeManager 参数
+      case 2:
+        return SettingsScreen(themeManager: widget.themeManager);
+      default:
+        return const HomeScreen();
+    }
   }
 }

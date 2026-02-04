@@ -16,8 +16,6 @@ class HomeScreen extends StatelessWidget {
             '欢迎使用 EmuTravel',
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
           ),
-          SizedBox(height: 16),
-          Text('开始规划你的旅程吧！'),
         ],
       ),
     );
