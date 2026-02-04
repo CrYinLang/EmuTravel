@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -24,8 +25,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+    packaging {
+        jniLibs.excludes.add("lib/x86/**")
+//        jniLibs.excludes.add("lib/x86_64/**")
+        jniLibs.excludes.add("lib/armeabi-v7a/**")
+        jniLibs.excludes.add("lib/mips/**")
     }
 
     signingConfigs {
@@ -41,8 +45,11 @@ android {
         applicationId = "com.cryinlang.emutravel"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode.toInteger()
+        versionCode = flutter.versionCode.toInt()
         versionName = flutter.versionName
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -54,6 +61,12 @@ android {
         debug {
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 

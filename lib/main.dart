@@ -11,7 +11,7 @@ class EmuTravel extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'EmuTravel',
-      home: HomePage(), // 改为使用包含底部导航栏的主页
+      home: HomePage(),
     );
   }
 }
@@ -24,9 +24,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0; // 当前选中的导航项索引[1,3](@ref)
+  int _currentIndex = 0;
 
-  // 定义各个页面（后续可以替换为您的实际页面）
   final List<Widget> _pages = [
     Center(child: Text('首页内容')), // 页面1
     Center(child: Text('设置内容')), // 页面2
@@ -39,12 +38,12 @@ class _HomePageState extends State<HomePage> {
         title: Text('EmuTravel'),
         centerTitle: true,
       ),
-      body: _pages[_currentIndex], // 显示当前选中的页面[1,3](@ref)
+      body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex, // 当前选中的索引[3,6](@ref)
+        currentIndex: _currentIndex,
         onTap: (int index) {
           setState(() {
-            _currentIndex = index; // 点击时更新索引[1,3](@ref)
+            _currentIndex = index;
           });
         },
         items: const [
@@ -57,8 +56,8 @@ class _HomePageState extends State<HomePage> {
             label: '设置',
           ),
         ],
-        type: BottomNavigationBarType.fixed, // 防止超过3个项时的样式问题[3](@ref)
-        fixedColor: Colors.blue, // 选中项的颜色[3,6](@ref)
+        type: BottomNavigationBarType.fixed,
+        fixedColor: Colors.blue,
       ),
     );
   }
