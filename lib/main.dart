@@ -1,23 +1,81 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
+import 'home_screen.dart';
+import 'settings.dart';
+import 'theme_manager.dart';
 
 void main() {
-  runApp(EmuTravel());
+  runApp(const EmuTravel());
 }
 
-class EmuTravel extends StatelessWidget {
+class EmuTravel extends StatefulWidget {
   const EmuTravel({super.key});
 
   @override
+  State<EmuTravel> createState() => _EmuTravelState();
+}
+
+class _EmuTravelState extends State<EmuTravel> {
+  final ThemeManager _themeManager = ThemeManager();
+  bool _isDarkMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeManager.addListener(_onThemeChanged);
+    _isDarkMode = _themeManager.isDarkMode;
+  }
+
+  void _onThemeChanged() {
+    setState(() {
+      _isDarkMode = _themeManager.isDarkMode;
+    });
+  }
+
+  @override
+  void dispose() {
+    _themeManager.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'EmuTravel',
-      home: HomePage(),
+    return AnimatedTheme(
+      data: _isDarkMode
+          ? ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        brightness: Brightness.dark,
+      )
+          : ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        brightness: Brightness.light,
+      ),
+      duration: const Duration(milliseconds: 300), // 渐变动画
+      child: MaterialApp(
+        title: 'EmuTravel',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          useMaterial3: true,
+          brightness: Brightness.light,
+        ),
+        darkTheme: ThemeData(
+          primarySwatch: Colors.blue,
+          useMaterial3: true,
+          brightness: Brightness.dark,
+        ),
+        themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+        home: HomePage(themeManager: _themeManager),
+      ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final ThemeManager themeManager;
+
+  const HomePage({super.key, required this.themeManager});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -26,19 +84,16 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    Center(child: Text('首页内容')), // 页面1
-    Center(child: Text('设置内容')), // 页面2
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('EmuTravel'),
+        title: const Text('EmuTravel'),
         centerTitle: true,
       ),
-      body: _pages[_currentIndex],
+      body: _currentIndex == 0
+          ? const HomeScreen()
+          : SettingsScreen(themeManager: widget.themeManager),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (int index) {
@@ -57,7 +112,8 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
         type: BottomNavigationBarType.fixed,
-        fixedColor: Colors.blue,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
       ),
     );
   }
