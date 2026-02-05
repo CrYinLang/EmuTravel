@@ -93,14 +93,14 @@ class AboutPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '上次更新:${AppConstants.lastUpdate}',
+                  '上次更新:${Vars.lastUpdate}',
                   style: TextStyle(
                     fontSize: 15,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
                 Text(
-                  '${AppConstants.version} | ${AppConstants.build}',
+                  '${Vars.version} | ${Vars.build}',
                   style: TextStyle(
                     fontSize: 14,
                     color: Color.fromARGB(
@@ -136,7 +136,7 @@ class AboutPage extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return FutureBuilder<Map<String, dynamic>?>(
-      future: AppConstants.fetchVersionInfo(),
+      future: Vars.fetchVersionInfo(),
       builder: (context, snapshot) {
         const String baseText = '提示：新软件有bug请反馈';
         String additionalText = '';
@@ -145,7 +145,7 @@ class AboutPage extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
           final versionInfo = snapshot.data!;
           final remoteBuild = versionInfo['Build']?.toString() ?? '';
-          final currentBuild = AppConstants.build;
+          final currentBuild = Vars.build;
 
           // 版本对比
           if (remoteBuild.isNotEmpty && currentBuild.isNotEmpty) {

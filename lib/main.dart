@@ -7,15 +7,21 @@ import 'theme_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-class AppConstants {
+class Vars {
   static const String lastUpdate = '26-02-04-20-50';
   static const String version = '1.0.0.0';
   static const String build = '1000';
+  static const Map<String, String> headers = {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+    'Accept': 'application/json',
+    'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+  };
 
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
     try {
       final response = await http.get(
-          Uri.parse('https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json')
+        Uri.parse('https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json'),
+        headers: headers,
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
