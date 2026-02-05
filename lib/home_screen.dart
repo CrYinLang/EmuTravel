@@ -6,14 +6,25 @@ import 'main.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [])),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [],
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AddJourneyPage())),
-        backgroundColor: Colors.blue, foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (context) => const AddJourneyPage())),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
+        ),
         child: const Icon(Icons.add, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -23,210 +34,315 @@ class HomeScreen extends StatelessWidget {
 
 class AddJourneyPage extends StatefulWidget {
   const AddJourneyPage({super.key});
+
   @override
   State<AddJourneyPage> createState() => _AddJourneyPageState();
 }
 
-class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProviderStateMixin {
-  DateTime? selectedDate;
-  final _textController = TextEditingController();
-  bool _isLoading = false;
-  List<dynamic> _searchResults = [];
+class _AddJourneyPageState extends State<AddJourneyPage>
+    with SingleTickerProviderStateMixin {
+  DateTime? _selectedDate;
+  final _trainNumberCtrl = TextEditingController();
+  bool _loading = false;
+  List<dynamic> _trainResults = [];
   int? _expandedIndex;
-  late AnimationController _animationController;
-  late Animation<double> _animation;
-
-  final Map<int, List<dynamic>> _stopDetails = {};
-  final Map<int, bool> _loadingStopDetails = {};
+  late AnimationController _animCtrl;
+  late Animation<double> _anim;
+  String? _fromCode, _toCode;
+  String? _fromName = '请选择', _toName = '请选择';
+  List<dynamic> _allStations = [];
+  bool _loadingStations = false;
+  List<dynamic> _stationResults = [];
+  int? _stationExpandedIndex;
+  final Map<int, List<dynamic>> _stationDetails = {};
+  final Map<int, bool> _stationLoading = {};
+  int _searchMode = 0;
+  final Map<int, List<dynamic>> _trainDetails = {};
+  final Map<int, bool> _trainLoading = {};
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(duration: const Duration(milliseconds: 300), vsync: this);
-    _animation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
-    _textController.addListener(() {
-      final text = _textController.text;
-      if (text.isNotEmpty && text != text.toUpperCase()) _validateAndFormatInput(text);
+    _animCtrl = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _anim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
+    _loadStations();
+    _trainNumberCtrl.addListener(() {
+      final text = _trainNumberCtrl.text;
+      if (text.isNotEmpty && text != text.toUpperCase()) _formatInput(text);
     });
-
-    // 自动选择明天作为默认日期
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    selectedDate = today.add(const Duration(days: 1));  // 明天
+    _selectedDate = today.add(const Duration(days: 1));
+  }
+
+  Future<void> _loadStations() async {
+    setState(() => _loadingStations = true);
+    try {
+      final jsonString = await rootBundle.loadString('assets/stations.json');
+      setState(() => _allStations = json.decode(jsonString));
+    } catch (e) {
+      _showSnack('加载站点数据失败: $e');
+    } finally {
+      setState(() => _loadingStations = false);
+    }
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
-    _textController.dispose();
+    _animCtrl.dispose();
+    _trainNumberCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));  // 明天
+    final tomorrow = today.add(const Duration(days: 1));
     final maxDate = today.add(const Duration(days: 14));
     final picked = await showDatePicker(
-        context: context,
-        initialDate: selectedDate ?? tomorrow,  // 默认显示明天
-        firstDate: today,  // 最早可选今天
-        lastDate: maxDate
+      context: context,
+      initialDate: _selectedDate ?? tomorrow,
+      firstDate: today,
+      lastDate: maxDate,
     );
     if (picked != null) {
       setState(() {
-        selectedDate = picked;
+        _selectedDate = picked;
         _expandedIndex = null;
-        _stopDetails.clear(); // 清空之前的停站信息
-        _loadingStopDetails.clear();
-        if (_animationController.isAnimating) _animationController.reset();
+        _stationExpandedIndex = null;
+        _trainDetails.clear();
+        _trainLoading.clear();
+        _stationDetails.clear();
+        _stationLoading.clear();
+        if (_animCtrl.isAnimating) _animCtrl.reset();
       });
     }
   }
 
-  String get dateText => selectedDate == null ? "选择日期" :
-  "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}";
-  String get _formattedDate => selectedDate == null ? "" :
-  "${selectedDate!.year}${selectedDate!.month.toString().padLeft(2, '0')}${selectedDate!.day.toString().padLeft(2, '0')}";
+  String get dateText => _selectedDate == null
+      ? "选择日期"
+      : "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
 
-  void _validateAndFormatInput(String value) {
+  String get _formattedDate => _selectedDate == null
+      ? ""
+      : "${_selectedDate!.year}${_selectedDate!.month.toString().padLeft(2, '0')}${_selectedDate!.day.toString().padLeft(2, '0')}";
+
+  void _formatInput(String value) {
     if (value.isEmpty) return;
     String uppercase = value.toUpperCase();
-    const allowedLetters = 'GDCSKZTW';
+    const allowed = 'GDCSKZTW';
     String result = '';
     for (int i = 0; i < uppercase.length; i++) {
       String char = uppercase[i];
       if (i == 0) {
-        if (RegExp(r'[0-9]').hasMatch(char) || allowedLetters.contains(char)) result += char;
+        if (RegExp(r'[0-9]').hasMatch(char) || allowed.contains(char)) {
+          result += char;
+        }
       } else {
         if (RegExp(r'[0-9]').hasMatch(char)) result += char;
       }
     }
-    if (result != _textController.text) {
-      _textController.value = _textController.value.copyWith(
-        text: result, selection: TextSelection.collapsed(offset: result.length),
+    if (result != _trainNumberCtrl.text) {
+      _trainNumberCtrl.value = _trainNumberCtrl.value.copyWith(
+        text: result,
+        selection: TextSelection.collapsed(offset: result.length),
       );
     }
   }
 
-  Future<void> _searchTrainInfo() async {
-    if (selectedDate == null) { _showSnackBar('请先选择日期'); return; }
-    final trainNumber = _textController.text.trim();
-    if (trainNumber.isEmpty) { _showSnackBar('请输入车次'); return; }
+  void _switchMode(int mode) {
+    if (_searchMode == mode) return;
     setState(() {
-      _isLoading = true;
-      _searchResults.clear();
-      _stopDetails.clear(); // 清空停站信息
-      _loadingStopDetails.clear();
+      _searchMode = mode;
       _expandedIndex = null;
-      if (_animationController.isAnimating) _animationController.reset();
+      _stationExpandedIndex = null;
+      _trainDetails.clear();
+      _trainLoading.clear();
+      _stationDetails.clear();
+      _stationLoading.clear();
+      if (_animCtrl.isAnimating) _animCtrl.reset();
+    });
+  }
+
+  Future<void> _searchTrain() async {
+    if (_selectedDate == null) {
+      _showSnack('请先选择日期');
+      return;
+    }
+    final trainNumber = _trainNumberCtrl.text.trim();
+    if (trainNumber.isEmpty) {
+      _showSnack('请输入车次');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _trainResults.clear();
+      _trainDetails.clear();
+      _trainLoading.clear();
+      _expandedIndex = null;
+      if (_animCtrl.isAnimating) _animCtrl.reset();
     });
     try {
-      final url = 'https://search.12306.cn/search/v1/train/search?keyword=$trainNumber&date=$_formattedDate';
-      final response = await http.get(Uri.parse(url),headers: Vars.normalHeaders);
+      final url =
+          'https://search.12306.cn/search/v1/train/search?keyword=$trainNumber&date=$_formattedDate';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: Vars.normalHeaders,
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == true) {
-          setState(() { _searchResults = data['data'] ?? []; });
-          if (_searchResults.isEmpty) {
-            _showSnackBar('未找到相关车次信息');
-          } else {
-            _showSnackBar('找到 ${_searchResults.length} 条结果');
-          }
+          setState(() => _trainResults = data['data'] ?? []);
+          _showSnack(
+            _trainResults.isEmpty
+                ? '未找到相关车次信息'
+                : '找到 ${_trainResults.length} 条结果',
+          );
         } else {
-          _showSnackBar('搜索失败: ${data['errorMsg']}');
+          _showSnack('搜索失败: ${data['errorMsg']}');
         }
       } else {
-        _showSnackBar('网络请求失败: ${response.statusCode}');
+        _showSnack('网络请求失败: ${response.statusCode}');
       }
     } catch (e) {
-      _showSnackBar('发生错误: $e');
+      _showSnack('发生错误: $e');
     } finally {
-      setState(() { _isLoading = false; });
+      setState(() => _loading = false);
     }
   }
 
-  Future<void> _fetchStopDetails(int index) async {
-    if (_stopDetails.containsKey(index)) return; // 已加载过
-
-    final trainInfo = _searchResults[index];
-    final trainNumber = trainInfo['station_train_code']?.toString() ?? '';
-    if (trainNumber.isEmpty) return;
-
+  Future<void> _searchStation() async {
+    if (_selectedDate == null) {
+      _showSnack('请先选择日期');
+      return;
+    }
+    if (_fromCode == null || _toCode == null) {
+      _showSnack('请选择起始站和终点站');
+      return;
+    }
     setState(() {
-      _loadingStopDetails[index] = true;
+      _loading = true;
+      _stationResults.clear();
+      _stationDetails.clear();
+      _stationLoading.clear();
+      _stationExpandedIndex = null;
+      if (_animCtrl.isAnimating) _animCtrl.reset();
     });
-
     try {
-      // 调用携程API获取停站信息
-      final stopData = await _fetchCtripStopTimeInfo(trainNumber);
-
-      setState(() {
-        _stopDetails[index] = stopData;
-        _loadingStopDetails[index] = false;
-      });
+      final url =
+          'https://search.12306.cn/search/v1/train/search?from_station=$_fromCode&to_station=$_toCode&date=$_formattedDate';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: Vars.normalHeaders,
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == true) {
+          setState(() => _stationResults = data['data'] ?? []);
+          _showSnack(
+            _stationResults.isEmpty
+                ? '未找到相关车次信息'
+                : '找到 ${_stationResults.length} 条结果',
+          );
+        } else {
+          _showSnack('搜索失败: ${data['errorMsg']}');
+        }
+      } else {
+        _showSnack('网络请求失败: ${response.statusCode}');
+      }
     } catch (e) {
-      debugPrint('获取停站信息失败: $e'); // 使用debugPrint替代print
-      _showSnackBar('获取停站信息失败: $e');
-      setState(() {
-        _loadingStopDetails[index] = false;
-      });
+      _showSnack('发生错误: $e');
+    } finally {
+      setState(() => _loading = false);
     }
   }
 
-  Future<List<dynamic>> _fetchCtripStopTimeInfo(String trainNumber) async {
-    // 携程API地址
-    final url = Uri.parse('https://m.ctrip.com/restapi/soa2/14674/json/GetTrainStopTimeInfo');
+  Future<void> _fetchDetails(int index, bool isStation) async {
+    if (isStation) {
+      if (_stationDetails.containsKey(index)) return;
+      final trainInfo = _stationResults[index];
+      final trainNumber = trainInfo['station_train_code']?.toString() ?? '';
+      if (trainNumber.isEmpty) return;
+      setState(() => _stationLoading[index] = true);
+      try {
+        final stopData = await _fetchStopInfo(trainNumber);
+        setState(() {
+          _stationDetails[index] = stopData;
+          _stationLoading[index] = false;
+        });
+      } catch (e) {
+        debugPrint('获取停站信息失败: $e');
+        _showSnack('获取停站信息失败: $e');
+        setState(() => _stationLoading[index] = false);
+      }
+    } else {
+      if (_trainDetails.containsKey(index)) return;
+      final trainInfo = _trainResults[index];
+      final trainNumber = trainInfo['station_train_code']?.toString() ?? '';
+      if (trainNumber.isEmpty) return;
+      setState(() => _trainLoading[index] = true);
+      try {
+        final stopData = await _fetchStopInfo(trainNumber);
+        setState(() {
+          _trainDetails[index] = stopData;
+          _trainLoading[index] = false;
+        });
+      } catch (e) {
+        debugPrint('获取停站信息失败: $e');
+        _showSnack('获取停站信息失败: $e');
+        setState(() => _trainLoading[index] = false);
+      }
+    }
+  }
 
-    // 准备请求头
+  Future<List<dynamic>> _fetchStopInfo(String trainNumber) async {
+    final url = Uri.parse(
+      'https://m.ctrip.com/restapi/soa2/14674/json/GetTrainStopTimeInfo',
+    );
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       'Referer': 'https://m.ctrip.com/',
       'Origin': 'https://m.ctrip.com',
     };
-
-    // 准备请求体 - 根据实际返回数据结构，可能只需要TrainNumber
-    final body = {
-      'TrainNumber': trainNumber,
-      // 根据实际需要添加日期参数，但根据返回结果看可能不需要
-      // 'DepartureDate': dateText.replaceAll('选择日期', ''),
-    };
-
+    final body = {'TrainNumber': trainNumber, 'DepartDate': _formattedDate};
     try {
       final response = await http.post(
         url,
         headers: headers,
         body: json.encode(body),
       );
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-
-        // 根据您提供的返回数据结构进行解析
         if (data['RetCode'] == 1 && data['StopList'] != null) {
           final List<dynamic> stopList = data['StopList'];
-
-          // 格式化停站信息
-          final formattedStops = stopList.map((stop) {
-            return {
-              'stationNo': stop['StationNo'] ?? '',
-              'stationName': stop['StationName'] ?? '',
-              'arriveTime': stop['ArriveTime'] ?? '--:--',
-              'departTime': stop['DepartTime'] ?? '--:--',
-              'runTime': stop['RunTime'] ?? '0',
-              'stayTime': stop['StayWayStationTime'] ?? '0',
-              'delayMinutes': stop['DelayMinutes'] ?? 0,
-              'telCode': stop['TelCode'] ?? '',
-              'isFirst': stop['StationNo'] == '01',
-              'isLast': stop['StationNo'] == stopList.length.toString().padLeft(2, '0'),
-            };
-          }).toList();
-
-          return formattedStops;
+          return stopList
+              .map(
+                (stop) => {
+                  'stationNo': stop['StationNo'] ?? '',
+                  'stationName': stop['StationName'] ?? '',
+                  'arriveTime': stop['ArriveTime'] ?? '--:--',
+                  'departTime': stop['DepartTime'] ?? '--:--',
+                  'runTime': stop['RunTime'] ?? '0',
+                  'stayTime': stop['StayWayStationTime'] ?? '0',
+                  'delayMinutes': stop['DelayMinutes'] ?? 0,
+                  'telCode': stop['TelCode'] ?? '',
+                  'isFirst': stop['StationNo'] == '01',
+                  'isLast':
+                      stop['StationNo'] ==
+                      stopList.length.toString().padLeft(2, '0'),
+                },
+              )
+              .toList();
         } else if (data['RetCode'] != 1) {
-          throw Exception('API返回失败: RetCode=${data['RetCode']}, Ack=${data['ResponseStatus']?['Ack']}');
+          throw Exception(
+            'API返回失败: RetCode=${data['RetCode']}, Ack=${data['ResponseStatus']?['Ack']}',
+          );
         } else {
           return [];
         }
@@ -234,29 +350,98 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
         throw Exception('HTTP请求失败: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('获取停站信息错误: $e'); // 使用debugPrint替代print
+      debugPrint('获取停站信息错误: $e');
       rethrow;
     }
   }
 
-  void _toggleExpand(int index) async {
-    if (_expandedIndex == index) {
-      _animationController.reverse().then((_) {
-        if (mounted) { setState(() { _expandedIndex = null; }); }
+  Future<void> _showStationSelector(bool isFrom) async {
+    if (_loadingStations) {
+      _showSnack('正在加载站点数据...');
+      return;
+    }
+    if (_allStations.isEmpty) {
+      _showSnack('站点数据为空，请稍后重试');
+      return;
+    }
+    String? selectedCode = isFrom ? _fromCode : _toCode;
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StationSelectorModal(
+        stations: _allStations,
+        selectedCode: selectedCode,
+        title: isFrom ? '选择出发站' : '选择到达站',
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        if (isFrom) {
+          _fromCode = result['code'];
+          _fromName = result['name'];
+        } else {
+          _toCode = result['code'];
+          _toName = result['name'];
+        }
       });
-    } else {
-      setState(() { _expandedIndex = index; });
-      _animationController.forward();
-
-      // 展开时自动加载停站信息
-      await _fetchStopDetails(index);
     }
   }
 
-  void _showSnackBar(String message) {
+  void _toggleExpand(int index, bool isStation) async {
+    if (isStation) {
+      if (_stationExpandedIndex == index) {
+        _animCtrl.reverse().then((_) {
+          if (mounted) {
+            setState(() => _stationExpandedIndex = null);
+          }
+        });
+      } else {
+        setState(() => _stationExpandedIndex = index);
+        _animCtrl.forward();
+        await _fetchDetails(index, true);
+      }
+    } else {
+      if (_expandedIndex == index) {
+        _animCtrl.reverse().then((_) {
+          if (mounted) {
+            setState(() => _expandedIndex = null);
+          }
+        });
+      } else {
+        setState(() => _expandedIndex = index);
+        _animCtrl.forward();
+        await _fetchDetails(index, false);
+      }
+    }
+  }
+
+  void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
+  }
+
+  void _clearResults() {
+    if (_searchMode == 0) {
+      setState(() {
+        _trainResults.clear();
+        _trainDetails.clear();
+        _trainLoading.clear();
+        _expandedIndex = null;
+        if (_animCtrl.isAnimating) _animCtrl.reset();
+      });
+      _trainNumberCtrl.clear();
+      _showSnack('已清除车次搜索结果');
+    } else {
+      setState(() {
+        _stationResults.clear();
+        _stationDetails.clear();
+        _stationLoading.clear();
+        _stationExpandedIndex = null;
+        if (_animCtrl.isAnimating) _animCtrl.reset();
+      });
+      _showSnack('已清除站点搜索结果');
+    }
   }
 
   @override
@@ -264,227 +449,448 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
     return Scaffold(
       appBar: AppBar(
         title: const Text('添加旅途'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop()),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          if ((_searchMode == 0 && _trainResults.isNotEmpty) ||
+              (_searchMode == 1 && _stationResults.isNotEmpty))
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _clearResults,
+              tooltip: '清除搜索结果',
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          Row(children: [
-            Expanded(flex: 4, child: GestureDetector(
-              onTap: _pickDate,
-              child: Container(
-                height: 56, padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _pickDate,
+                    child: Container(
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            dateText,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: _selectedDate == null
+                                  ? Theme.of(context).hintColor
+                                  : Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                alignment: Alignment.centerLeft,
-                child: Row(children: [
-                  const Icon(Icons.calendar_today, size: 20),
-                  const SizedBox(width: 8),
-                  Text(dateText, style: TextStyle(
-                    fontSize: 16,
-                    color: selectedDate == null ? Theme.of(context).hintColor : Theme.of(context).textTheme.bodyLarge?.color,
-                  )),
-                ]),
-              ),
-            )),
-            const SizedBox(width: 12),
-            Expanded(flex: 5, child: TextField(
-              controller: _textController,
-              onChanged: (value) { if (value.isNotEmpty) _validateAndFormatInput(value); },
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9GDCSKZTWgdcskztw]')),
-                TextInputFormatter.withFunction((oldValue, newValue) {
-                  return newValue.copyWith(text: newValue.text.toUpperCase());
-                }),
               ],
-              decoration: InputDecoration(
-                hintText: "请输入车次", contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.blue, width: 2)),
-                filled: true, fillColor: Colors.transparent,
-              ),
-              style: const TextStyle(fontSize: 16), maxLines: 1,
-            )),
-          ]),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity, height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _searchTrainInfo,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _isLoading
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                  : const Text('搜索车次信息', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(child: _buildResultsList()),
-        ]),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+              child: SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(
+                    value: 0,
+                    label: Text('车次查询'),
+                    icon: Icon(Icons.train, size: 20),
+                  ),
+                  ButtonSegment(
+                    value: 1,
+                    label: Text('车站查询'),
+                    icon: Icon(Icons.location_on, size: 20),
+                  ),
+                ],
+                selected: {_searchMode},
+                onSelectionChanged: (Set<int> s) => _switchMode(s.first),
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  selectedBackgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primary,
+                  selectedForegroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onPrimary,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_searchMode == 0) ...[
+              TextField(
+                controller: _trainNumberCtrl,
+                onChanged: (value) {
+                  if (value.isNotEmpty) _formatInput(value);
+                },
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r'[0-9GDCSKZTWgdcskztw]'),
+                  ),
+                  TextInputFormatter.withFunction(
+                    (oldValue, newValue) =>
+                        newValue.copyWith(text: newValue.text.toUpperCase()),
+                  ),
+                ],
+                decoration: InputDecoration(
+                  hintText: "请输入车次",
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                ),
+                style: const TextStyle(fontSize: 16),
+                maxLines: 1,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _searchTrain,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          '搜索车次',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.surface,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+            if (_searchMode == 1) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _showStationSelector(true),
+                      child: Container(
+                        height: 56,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 20,
+                              color: _fromCode != null
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).hintColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _fromName!,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: _fromCode != null
+                                      ? Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge?.color
+                                      : Theme.of(context).hintColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 40,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.arrow_forward,
+                      size: 20,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _showStationSelector(false),
+                      child: Container(
+                        height: 56,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 20,
+                              color: _toCode != null
+                                  ? Colors.red
+                                  : Theme.of(context).hintColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _toName!,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: _toCode != null
+                                      ? Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge?.color
+                                      : Theme.of(context).hintColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _searchStation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          '搜索站点间车次',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            Expanded(
+              child: _searchMode == 0 ? _buildTrainList() : _buildStationList(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildResultsList() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_searchResults.isEmpty) {
+  Widget _buildTrainList() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_trainResults.isEmpty) {
       return const Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.train, size: 64, color: Colors.grey), SizedBox(height: 16),
-          Text('暂无搜索结果',
-              style: TextStyle(fontSize: 16, color: Colors.grey)),
-        ]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.train, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              '暂无车次搜索结果',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _trainResults.length,
+      itemBuilder: (context, index) => _buildItem(index, false),
+    );
+  }
+
+  Widget _buildStationList() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_stationResults.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.location_on, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              '暂无站点间车次结果',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
       );
     }
     return ListView.builder(
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) => _buildTrainItem(index),
+      itemCount: _stationResults.length,
+      itemBuilder: (context, index) => _buildItem(index, true),
     );
   }
 
-  Widget _buildTrainItem(int index) {
-    final item = _searchResults[index];
-    final isExpanded = _expandedIndex == index;
+  Widget _buildItem(int index, bool isStation) {
+    final item = isStation ? _stationResults[index] : _trainResults[index];
+    final isExpanded = isStation
+        ? _stationExpandedIndex == index
+        : _expandedIndex == index;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Column(children: [
-        ListTile(
-          leading: const Icon(Icons.train, color: Colors.blue),
-          title: Text('${item['station_train_code']} 次列车', style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text('${item['from_station']} → ${item['to_station']}'),
-          trailing: AnimatedIcon(
-            icon: AnimatedIcons.arrow_menu,
-            progress: isExpanded ? _animation : Tween<double>(begin: 0, end: 1).animate(AlwaysStoppedAnimation(0)),
-            color: Colors.blue,
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.train, color: Colors.blue),
+            title: Text(
+              '${item['station_train_code']} 次列车',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text('${item['from_station']} → ${item['to_station']}'),
+            trailing: AnimatedIcon(
+              icon: AnimatedIcons.arrow_menu,
+              progress: isExpanded
+                  ? _anim
+                  : Tween<double>(
+                      begin: 0,
+                      end: 1,
+                    ).animate(AlwaysStoppedAnimation(0)),
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            onTap: () => _toggleExpand(index, isStation),
           ),
-          onTap: () => _toggleExpand(index),
-        ),
-        if (isExpanded) ...[
-          SizeTransition(sizeFactor: _animation, child: _buildExpandedContent(index, item)),
+          if (isExpanded) ...[
+            SizeTransition(
+              sizeFactor: _anim,
+              child: _buildExpanded(index, item, isStation),
+            ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 
-  Widget _buildExpandedContent(int index, Map<String, dynamic> item) {
-    final isLoading = _loadingStopDetails[index] ?? false;
-    final stopData = _stopDetails[index] ?? [];
-
-    // 获取始发站和终点站的到达/出发时间
-    String departureTime = item['start_time']?.toString() ?? '--:--';
-    String arrivalTime = item['arrive_time']?.toString() ?? '--:--';
+  Widget _buildExpanded(int index, Map<String, dynamic> item, bool isStation) {
+    final loading = isStation
+        ? (_stationLoading[index] ?? false)
+        : (_trainLoading[index] ?? false);
+    final stopData = isStation
+        ? (_stationDetails[index] ?? [])
+        : (_trainDetails[index] ?? []);
+    String depTime = item['start_time']?.toString() ?? '--:--';
+    String arrTime = item['arrive_time']?.toString() ?? '--:--';
     String runTime = item['run_time']?.toString() ?? '--';
-
-    // 从停站信息中查找始发站和终点站
-    Map<String, dynamic>? firstStop;
-    Map<String, dynamic>? lastStop;
-
     if (stopData.isNotEmpty) {
-      // 查找始发站（第一站）
-      try {
-        firstStop = stopData.firstWhere(
-              (stop) => (stop['isFirst'] as bool?) == true,
-        ) as Map<String, dynamic>?;
-      } catch (e) {
-        // 如果没有找到 isFirst 为 true 的车站，使用第一站
-        firstStop = stopData.isNotEmpty ? stopData[0] as Map<String, dynamic>? : null;
-      }
-
-      // 查找终点站（最后一站）
-      try {
-        lastStop = stopData.firstWhere(
-              (stop) => (stop['isLast'] as bool?) == true,
-        ) as Map<String, dynamic>?;
-      } catch (e) {
-        // 如果没有找到 isLast 为 true 的车站，使用最后一站
-        lastStop = stopData.isNotEmpty ? stopData.last as Map<String, dynamic>? : null;
-      }
-
+      final firstStop =
+          stopData.cast<Map<String, dynamic>?>().firstWhere(
+            (stop) => stop?['isFirst'] == true,
+            orElse: () => null,
+          ) ??
+          stopData.first as Map<String, dynamic>?;
+      final lastStop =
+          stopData.cast<Map<String, dynamic>?>().firstWhere(
+            (stop) => stop?['isLast'] == true,
+            orElse: () => null,
+          ) ??
+          stopData.last as Map<String, dynamic>?;
       if (firstStop != null) {
-        // 始发站使用发车时间
-        departureTime = firstStop['departTime']?.toString() ??
-            firstStop['arriveTime']?.toString() ??
-            departureTime;
+        final firstArr = firstStop['arriveTime'] as String?;
+        final firstDep = firstStop['departTime'] as String?;
+        depTime = firstDep ?? firstArr ?? depTime;
       }
-
       if (lastStop != null) {
-        // 终点站使用到达时间
-        arrivalTime = lastStop['arriveTime']?.toString() ??
-            lastStop['departTime']?.toString() ??
-            arrivalTime;
+        final lastArr = lastStop['arriveTime'] as String?;
+        final lastDep = lastStop['departTime'] as String?;
+        arrTime = lastArr ?? lastDep ?? arrTime;
       }
-
-      // 从停站信息中计算总运行时间
-      if (stopData.isNotEmpty && firstStop != null && lastStop != null) {
-        // 获取始发站发车时间
-        final departureTimeStr = firstStop['departTime']?.toString() ??
-            firstStop['arriveTime']?.toString();
-        // 获取终点站到达时间
-        final arrivalTimeStr = lastStop['arriveTime']?.toString() ??
-            lastStop['departTime']?.toString();
-
-        if (departureTimeStr != null &&
-            arrivalTimeStr != null &&
-            departureTimeStr.length >= 5 &&
-            arrivalTimeStr.length >= 5) {
-
-          try {
-            // 解析时间字符串，如 "07:00", "11:29"
-            final departureParts = departureTimeStr.split(':');
-            final arrivalParts = arrivalTimeStr.split(':');
-
-            if (departureParts.length == 2 && arrivalParts.length == 2) {
-              final departureHour = int.tryParse(departureParts[0]) ?? 0;
-              final departureMinute = int.tryParse(departureParts[1]) ?? 0;
-              final arrivalHour = int.tryParse(arrivalParts[0]) ?? 0;
-              final arrivalMinute = int.tryParse(arrivalParts[1]) ?? 0;
-
-              // 转换为分钟数
-              final departureMinutes = departureHour * 60 + departureMinute;
-              final arrivalMinutes = arrivalHour * 60 + arrivalMinute;
-
-              // 计算时间差
-              int totalMinutes = arrivalMinutes - departureMinutes;
-
-              // 如果跨天（到达时间小于出发时间），说明是第二天
-              if (totalMinutes < 0) {
-                totalMinutes += 24 * 60; // 加上一天的时间
-              }
-
-              if (totalMinutes > 0) {
-                final hours = totalMinutes ~/ 60;
-                final minutes = totalMinutes % 60;
-                runTime = hours > 0 ? '$hours小时$minutes分' : '$minutes分';
-              }
-            }
-          } catch (e) {
-            debugPrint('时间解析错误: $e');
-          }
+      if (firstStop != null && lastStop != null) {
+        final firstDep = firstStop['departTime'] as String?;
+        final lastArr = lastStop['arriveTime'] as String?;
+        if (firstDep != null && lastArr != null) {
+          runTime = _calcRunTime(firstDep, lastArr);
         }
       }
     }
-
+    final bool expired = _isExpired(index, item, isStation);
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 基本车次信息卡片
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.shade200, width: 1),
+              side: BorderSide(color: Colors.grey.shade200),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // 车次名称和时间
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -492,20 +898,48 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              item['station_train_code']?.toString() ?? '--',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  item['station_train_code'] ?? '--',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: expired
+                                        ? Colors.grey
+                                        : Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                if (expired) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      '已过期',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              item['train_class_name']?.toString() ?? '',
+                              item['train_class_name'] ?? '',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey.shade600,
+                                color: expired
+                                    ? Colors.grey.shade500
+                                    : Colors.grey.shade600,
                               ),
                             ),
                           ],
@@ -516,23 +950,37 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.schedule, size: 16, color: Colors.blue),
+                              Icon(
+                                Icons.schedule,
+                                size: 16,
+                                color: expired
+                                    ? Colors.grey
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
                               const SizedBox(width: 4),
                               Text(
-                                departureTime,
-                                style: const TextStyle(
+                                depTime,
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: expired ? Colors.grey : Colors.black,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                              Icon(
+                                Icons.arrow_forward,
+                                size: 16,
+                                color: expired
+                                    ? Colors.grey.shade400
+                                    : Colors.grey,
+                              ),
                               const SizedBox(width: 8),
                               Text(
-                                arrivalTime,
-                                style: const TextStyle(
+                                arrTime,
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: expired ? Colors.grey : Colors.black,
                                 ),
                               ),
                             ],
@@ -542,18 +990,17 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                             '运行时长: $runTime',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: expired
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
                             ),
                           ),
                         ],
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 12),
-                  const Divider(height: 1, color: Colors.grey),
-
-                  // 车站信息
+                  const Divider(),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -562,62 +1009,16 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.place, size: 16, color: Colors.green),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '始发站',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      Text(
-                                        item['from_station']?.toString() ?? '--',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            _stationRow(
+                              '始发站',
+                              item['from_station'],
+                              expired ? Colors.grey : Colors.green,
                             ),
                             const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.place, size: 16, color: Colors.red),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '终点站',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      Text(
-                                        item['to_station']?.toString() ?? '--',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            _stationRow(
+                              '终点站',
+                              item['to_station'],
+                              expired ? Colors.grey : Colors.red,
                             ),
                           ],
                         ),
@@ -625,7 +1026,9 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                       Icon(
                         Icons.arrow_forward,
                         size: 24,
-                        color: Colors.blue.shade300,
+                        color: expired
+                            ? Colors.grey.shade400
+                            : Colors.blue.shade300,
                       ),
                     ],
                   ),
@@ -633,187 +1036,182 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // 停站信息标题
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.train, size: 20, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '停站信息',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (stopData.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${stopData.length}站',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                ],
+          _buildStopSection(index, stopData, loading, isStation),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: expired
+                  ? null
+                  : () => _handleSelect(index, item, isStation),
+              icon: Icon(
+                Icons.add,
+                color: expired ? Colors.grey.shade400 : Colors.white,
               ),
-              if (isLoading)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else if (!isLoading && stopData.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 20),
-                  onPressed: () => _refreshStopDetails(index),
-                  tooltip: '刷新停站信息',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  iconSize: 20,
-                ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // 停站信息内容
-          if (isLoading)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: Column(
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 12),
-                    Text(
-                      '正在加载停站信息...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+              label: Text(
+                expired ? '车次已过期' : '添加此车次',
+                style: TextStyle(
+                  color: expired ? Colors.grey.shade400 : Colors.white,
                 ),
               ),
-            )
-          else if (stopData.isEmpty)
-            GestureDetector(
-              onTap: () => _fetchStopDetails(index),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: expired
+                    ? Colors.grey.shade300
+                    : Theme.of(context).colorScheme.primary,
+                foregroundColor: expired ? Colors.grey.shade400 : Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 40,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      '暂无停站信息',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '点击加载停站信息',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
                 ),
               ),
-            )
-          else
-            _buildStopList(stopData),
-
-          const SizedBox(height: 20),
-
-          // 操作按钮
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _handleTrainSelection(item),
-                  icon: const Icon(Icons.add, size: 20),
-                  label: const Text(
-                    '添加此车次',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    elevation: 2,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // 新增：刷新停站信息的方法
-  void _refreshStopDetails(int index) async {
-    setState(() {
-      _loadingStopDetails[index] = true;
-      _stopDetails.remove(index); // 清除缓存数据
-    });
-
+  String _calcRunTime(String start, String end) {
     try {
-      final trainInfo = _searchResults[index];
-      final trainNumber = trainInfo['station_train_code']?.toString() ?? '';
-      if (trainNumber.isNotEmpty) {
-        final stopData = await _fetchCtripStopTimeInfo(trainNumber);
-        setState(() {
-          _stopDetails[index] = stopData;
-          _loadingStopDetails[index] = false;
-        });
-        _showSnackBar('停站信息已刷新');
-      }
+      if (start == '--:--' || end == '--:--') return '--';
+      List<String> startParts = start.split(':');
+      List<String> endParts = end.split(':');
+      if (startParts.length != 2 || endParts.length != 2) return '--';
+      int startHour = int.tryParse(startParts[0]) ?? 0;
+      int startMin = int.tryParse(startParts[1]) ?? 0;
+      int endHour = int.tryParse(endParts[0]) ?? 0;
+      int endMin = int.tryParse(endParts[1]) ?? 0;
+      int startTotal = startHour * 60 + startMin;
+      int endTotal = endHour * 60 + endMin;
+      if (endTotal < startTotal) endTotal += 24 * 60;
+      int total = endTotal - startTotal;
+      int hours = total ~/ 60;
+      int minutes = total % 60;
+      return hours > 0 ? '$hours小时$minutes分' : '$minutes分';
     } catch (e) {
-      _showSnackBar('刷新失败: $e');
-      setState(() {
-        _loadingStopDetails[index] = false;
-      });
+      return '--';
     }
   }
 
+  bool _isExpired(int index, Map<String, dynamic> item, bool isStation) {
+    if (_selectedDate == null) return false;
+    final stopData = isStation ? _stationDetails[index] : _trainDetails[index];
+    String? arrivalTime;
+    if (stopData != null && stopData.isNotEmpty) {
+      final lastStop =
+          stopData.cast<Map<String, dynamic>?>().firstWhere(
+            (stop) => stop?['isLast'] == true,
+            orElse: () => null,
+          ) ??
+          stopData.last as Map<String, dynamic>?;
+      if (lastStop != null) {
+        arrivalTime =
+            lastStop['arriveTime'] as String? ??
+            lastStop['departTime'] as String?;
+      }
+    }
+    if (arrivalTime == null || arrivalTime.isEmpty || arrivalTime == '--:--') {
+      arrivalTime = item['arrive_time']?.toString();
+    }
+    if (arrivalTime == null || arrivalTime.isEmpty || arrivalTime == '--:--') {
+      return false;
+    }
+    try {
+      final parts = arrivalTime.split(':');
+      if (parts.length != 2) return false;
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour == null || minute == null) return false;
+      final arrival = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        hour,
+        minute,
+      );
+      return DateTime.now().isAfter(arrival);
+    } catch (e) {
+      debugPrint('判断车次过期错误: $e');
+      return false;
+    }
+  }
+
+  Widget _stationRow(String label, String? name, Color iconColor) {
+    return Row(
+      children: [
+        Icon(Icons.place, size: 16, color: iconColor),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            Text(
+              name ?? '--',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  bool _isTimePassed(DateTime date, String? time, bool isLast) {
+    if (time == null || time.isEmpty || time == '--:--') return false;
+    try {
+      final parts = time.split(':');
+      if (parts.length != 2) return false;
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour == null || minute == null) return false;
+      final stationTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        hour,
+        minute,
+      );
+      return DateTime.now().isAfter(stationTime);
+    } catch (e) {
+      debugPrint('时间解析错误: $e');
+      return false;
+    }
+  }
+
+  Widget _buildStopSection(
+    int index,
+    List stops,
+    bool loading,
+    bool isStation,
+  ) {
+    if (loading) return const Center(child: CircularProgressIndicator());
+    if (stops.isEmpty) {
+      return GestureDetector(
+        onTap: () => _fetchDetails(index, isStation),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: const Center(child: Text('点击加载停站信息')),
+        ),
+      );
+    }
+    return _buildStopList(stops);
+  }
+
   Widget _buildStopList(List<dynamic> stops) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: ListView.builder(
         shrinkWrap: true,
@@ -821,46 +1219,62 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
         itemCount: stops.length,
         itemBuilder: (context, index) {
           final stop = stops[index];
-          final stationNo = stop['stationNo']?.toString() ?? '';
-          final stationName = stop['stationName']?.toString() ?? '';
-          final arriveTime = stop['arriveTime']?.toString() ?? '--:--';
-          final departTime = stop['departTime']?.toString() ?? '--:--';
-          final stayTime = int.tryParse(stop['stayTime']?.toString() ?? '0') ?? 0;
-          final isFirst = (stop['isFirst'] as bool?) ?? false;
-          final isLast = (stop['isLast'] as bool?) ?? false;
-          final isTerminal = isFirst || isLast;  // 判断是否是起点站或终点站
-
+          final no = stop['stationNo']?.toString() ?? '';
+          final name = stop['stationName']?.toString() ?? '';
+          final arr = stop['arriveTime']?.toString() ?? '--:--';
+          final dep = stop['departTime']?.toString() ?? '--:--';
+          final stay = int.tryParse(stop['stayTime']?.toString() ?? '0') ?? 0;
+          final first = (stop['isFirst'] as bool?) ?? false;
+          final last = (stop['isLast'] as bool?) ?? false;
+          final terminal = first || last;
+          bool passed = false;
+          if (_selectedDate != null) {
+            if (first) {
+              passed = _isTimePassed(_selectedDate!, dep, last);
+            } else if (last) {
+              passed = _isTimePassed(_selectedDate!, arr, last);
+            } else {
+              passed = _isTimePassed(_selectedDate!, dep, last);
+            }
+          }
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
               border: index < stops.length - 1
                   ? Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade200,
-                  width: 1,
-                ),
-              )
+                      bottom: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 1,
+                      ),
+                    )
                   : null,
-              color: isTerminal
-                  ? Colors.green.shade50
-                  : Colors.white,
+              color: passed
+                  ? (isDark
+                        ? Colors.orange.withValues(alpha: 0.2)
+                        : Colors.orange.shade50)
+                  : terminal
+                  ? (isDark
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.green.shade50)
+                  : Theme.of(context).colorScheme.surface,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 站序
                 Container(
                   width: 30,
                   height: 30,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isTerminal
-                        ? Colors.green
-                        : Colors.blue,
+                    color: passed
+                        ? (isDark ? Colors.orange.shade700 : Colors.orange)
+                        : terminal
+                        ? (isDark ? Colors.green.shade700 : Colors.green)
+                        : (isDark ? Colors.blue.shade700 : Colors.blue),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
-                    stationNo,
+                    no,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -868,95 +1282,64 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
-                // 车站信息
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 车站名称
                       Row(
                         children: [
                           Text(
-                            stationName,
+                            name,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
-                              color: isTerminal
-                                  ? Colors.green.shade700
-                                  : Colors.black,
+                              color: passed
+                                  ? (isDark
+                                        ? Colors.orange.shade300
+                                        : Colors.orange.shade700)
+                                  : terminal
+                                  ? (isDark
+                                        ? Colors.green.shade300
+                                        : Colors.green.shade700)
+                                  : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
-                          if (stop['stationStatus'] != null &&
-                              stop['stationStatus'] != '未知')
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(
-                                      stop['stationStatus']?.toString() ?? ''),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  stop['stationStatus']?.toString() ?? '',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.white,
-                                  ),
+                          if (passed)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.orange.shade700
+                                    : Colors.orange,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                '已过时',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
                         ],
                       ),
-
                       const SizedBox(height: 6),
-
-                      // 时间信息
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // 到达时间
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '到达',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                // 如果是始发站，到达时间显示为 --
-                                isFirst ? '--' : (arriveTime != '--:--' ? arriveTime : '--'),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: isFirst
-                                      ? Colors.grey
-                                      : arriveTime != '--:--'
-                                      ? Colors.black
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // 停站时间
-                          if (stayTime > 0)
+                          _timeBlock('到达', first ? '--' : arr, passed, first),
+                          if (stay > 0)
                             Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text(
                                   '停站',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.grey.shade600,
+                                    color: Theme.of(context).hintColor,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -965,49 +1348,30 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                                     Icon(
                                       Icons.access_time,
                                       size: 12,
-                                      color: Colors.green.shade600,
+                                      color: passed
+                                          ? Colors.orange.shade700
+                                          : (isDark
+                                                ? Colors.green.shade300
+                                                : Colors.green.shade600),
                                     ),
                                     const SizedBox(width: 2),
                                     Text(
-                                      '${stayTime}分',
+                                      '$stay分',
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: Colors.green.shade600,
                                         fontWeight: FontWeight.w500,
+                                        color: passed
+                                            ? Colors.orange.shade700
+                                            : (isDark
+                                                  ? Colors.green.shade300
+                                                  : Colors.green.shade600),
                                       ),
                                     ),
                                   ],
                                 ),
                               ],
                             ),
-
-                          // 发车时间
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '发车',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                // 如果是终点站，发车时间显示为 --
-                                isLast ? '--' : (departTime != '--:--' ? departTime : '--'),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: isLast
-                                      ? Colors.grey
-                                      : departTime != '--:--'
-                                      ? Colors.black
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
+                          _timeBlock('发车', last ? '--' : dep, passed, last),
                         ],
                       ),
                     ],
@@ -1021,35 +1385,253 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case '始发/终到站':
-        return Colors.green;
-      case '过路站':
-        return Colors.blue;
-      case '折返站':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
+  Widget _timeBlock(String label, String time, bool passed, bool isEdge) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: passed
+                ? Colors.orange.shade700
+                : isEdge
+                ? Theme.of(context).hintColor
+                : Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
   }
 
-
-  void _handleTrainSelection(Map<String, dynamic> trainInfo) {
+  void _handleSelect(int index, Map<String, dynamic> train, bool isStation) {
+    if (_isExpired(index, train, isStation)) {
+      _showSnack('车次已过期，无法添加');
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('确认添加'),
-        content: Text('是否添加 ${trainInfo['station_train_code']} 次列车？'),
+        content: Text('是否添加 ${train['station_train_code']} 次列车？'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('取消')),
-          ElevatedButton(onPressed: () { Navigator.of(context).pop(); _addJourney(trainInfo); }, child: const Text('确认添加')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _addJourney(index, train, isStation);
+            },
+            child: const Text('确认添加'),
+          ),
         ],
       ),
     );
   }
 
-  void _addJourney(Map<String, dynamic> trainInfo) {
-    _showSnackBar('已添加 ${trainInfo['station_train_code']} 次列车');
+  void _addJourney(int index, Map<String, dynamic> train, bool isStation) {
+    if (_isExpired(index, train, isStation)) {
+      _showSnack('车次已过期，无法添加');
+      return;
+    }
+    _showSnack('已添加 ${train['station_train_code']} 次列车');
+  }
+}
+
+// 站点选择器模态框组件
+class StationSelectorModal extends StatefulWidget {
+  final List<dynamic> stations;
+  final String? selectedCode;
+  final String title;
+
+  const StationSelectorModal({
+    super.key,
+    required this.stations,
+    this.selectedCode,
+    required this.title,
+  });
+
+  @override
+  State<StationSelectorModal> createState() => _StationSelectorModalState();
+}
+
+class _StationSelectorModalState extends State<StationSelectorModal> {
+  List<dynamic> _filtered = [];
+  final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = widget.stations;
+    _searchCtrl.addListener(() {
+      final query = _searchCtrl.text.trim().toLowerCase();
+      if (query.isEmpty) {
+        setState(() => _filtered = widget.stations);
+      } else {
+        setState(
+          () => _filtered = widget.stations.where((s) {
+            final n = s['name']?.toString().toLowerCase() ?? '';
+            final p = s['pinyin']?.toString().toLowerCase() ?? '';
+            final sc = s['short_code']?.toString().toLowerCase() ?? '';
+            final t = s['telecode']?.toString().toLowerCase() ?? '';
+            final c = s['city']?.toString().toLowerCase() ?? '';
+            return n.contains(query) ||
+                p.contains(query) ||
+                sc.contains(query) ||
+                t.contains(query) ||
+                c.contains(query);
+          }).toList(),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: MediaQuery.of(context).size.height * 0.8,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _searchCtrl,
+            focusNode: _searchFocus,
+            decoration: InputDecoration(
+              hintText: '搜索车站名称、拼音、三字码...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            autofocus: false,
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '共 ${_filtered.length} 个车站',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+                if (_searchCtrl.text.isNotEmpty)
+                  TextButton(
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      _searchFocus.unfocus();
+                    },
+                    child: const Text('清空搜索'),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _filtered.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.train, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          '未找到相关车站',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filtered.length,
+                    itemBuilder: (context, index) {
+                      final s = _filtered[index];
+                      final code = s['code']?.toString() ?? '';
+                      final name = s['name']?.toString() ?? '';
+                      final telecode = s['telecode']?.toString() ?? '';
+                      final city = s['city']?.toString() ?? '';
+                      final selected = code == widget.selectedCode;
+                      return ListTile(
+                        leading: Icon(
+                          Icons.train,
+                          color: selected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).hintColor,
+                        ),
+                        title: Text(
+                          name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: selected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '$city ($telecode)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                        trailing: selected
+                            ? const Icon(Icons.check_circle, color: Colors.blue)
+                            : null,
+                        onTap: () => Navigator.of(context).pop({
+                          'code': code,
+                          'name': name,
+                          'telecode': telecode,
+                          'city': city,
+                        }),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }
