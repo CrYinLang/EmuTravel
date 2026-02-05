@@ -230,12 +230,6 @@ class AboutPage extends StatelessWidget {
         const SizedBox(height: 12),
         _buildDataSourceItemWithIconData(
           context: context,
-          icon: Icons.storage,
-          title: 'EmuPassearch',
-          description: '本地数据库',
-        ),
-        _buildDataSourceItemWithIconData(
-          context: context,
           icon: Icons.cloud,
           title: 'rail.re',
           description: '联网交路查询',
@@ -244,7 +238,7 @@ class AboutPage extends StatelessWidget {
           context: context,
           icon: Icons.cloud_done,
           title: '12306',
-          description: '联网交路查询',
+          description: '联网交路查询,车站数据',
         ),
       ],
     );
