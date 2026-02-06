@@ -158,7 +158,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
       ),
     );
