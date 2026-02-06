@@ -8,9 +8,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class Vars {
-  static const String lastUpdate = '26-02-04-20-50';
-  static const String version = '1.0.0.0';
-  static const String build = '1000';
+  static const String lastUpdate = '26-02-07-01-00';
+  static const String version = '1.0.1.0';
+  static const String build = '1010';
   static const Map<String, String> normalHeaders = {
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
     'Accept': 'application/json',
