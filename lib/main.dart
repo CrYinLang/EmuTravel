@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 
 import 'home_screen.dart';
 import 'about_page.dart';
@@ -302,15 +303,69 @@ class _EmuTravelState extends State<EmuTravel> {
           return PopScope(
             canPop: false,
             child: AlertDialog(
-              title: const Text('内测资格证书缺失!'),
-              content: Text('你的设备: $deviceID\n您并未获取内测资格'),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('内测资格证书缺失!'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '你的设备ID: $deviceID',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '您并未获取内测资格，无法使用本应用',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
               actions: [
-                TextButton(
+                // 复制ID按钮
+                TextButton.icon(
+                  onPressed: () {
+                    _copyToClipboard(deviceID);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('设备ID已复制到剪贴板'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.content_copy, size: 16),
+                  label: const Text('复制ID'),
+                ),
+                const SizedBox(width: 8),
+                // 重试按钮 - 不关闭弹窗
+                OutlinedButton(
+                  onPressed: () {
+                    // 不关闭弹窗，直接重试检查
+                    _checkRemoteCommands();
+                  },
+                  child: const Text('重试'),
+                ),
+                // 退出按钮
+                ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                     exit(0);
                   },
-                  child: const Text('确定'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('退出'),
                 ),
               ],
             ),
@@ -318,6 +373,10 @@ class _EmuTravelState extends State<EmuTravel> {
         },
       );
     }
+  }
+
+  void _copyToClipboard(String text) async {
+       await Clipboard.setData(ClipboardData(text: text));
   }
 
   void _showWelcomeDialog(String user, String qq, String deviceID) {
