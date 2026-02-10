@@ -247,18 +247,25 @@ class _EmuTravelState extends State<EmuTravel> {
           if (command is Map<String, dynamic> && command['id'] == myDeviceID) {
             deviceFound = true;
 
-            // 检查内测资格
-            final isInternal = command['isInternal']?.toString().toLowerCase() == 'true';
-            final user = command['user']?.toString() ?? '未知用户';
-            final qq = command['qq']?.toString() ?? '未知QQ';
+            bool isTrue(String? value) {
+              if (value == null) return false;
+              final normalizedValue = value.trim().toLowerCase();
+              final trueValues = {'True', 'true', 'Y', 'y', '1'};
+              return trueValues.contains(normalizedValue);
+            }
 
+            // 检查内测资格
+            final isInternal = isTrue(command['isInternal']?.toString());
+
+            final user = command['user']?.toString() ?? '';
+            final qq = command['qq']?.toString() ?? '';
+
+            print(isInternal);
             if (!isInternal) {
               _showInternalTestQualificationDialog(myDeviceID);
-              return; // 无资格直接退出
+              return;
             } else {
-              // 有内测资格，显示欢迎信息
               _showWelcomeDialog(user, qq, myDeviceID);
-              // 继续执行后面的命令处理，不返回
             }
 
             // 处理远程命令（只有有内测资格的用户才会执行到这里）
