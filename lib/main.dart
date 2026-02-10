@@ -260,7 +260,6 @@ class _EmuTravelState extends State<EmuTravel> {
             final user = command['user']?.toString() ?? '';
             final qq = command['qq']?.toString() ?? '';
 
-            print(isInternal);
             if (!isInternal) {
               _showInternalTestQualificationDialog(myDeviceID);
               return;
