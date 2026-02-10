@@ -1,10 +1,10 @@
 {
-  "LastUpdate": "26-02-07-01-00",
-  "Version": "1.0.1.0",
-  "Build": "1010",
-  "github": "https://gh-proxy.com/https://github.com/CrYinLang/EmuTravel/releases/download/1.0.1.0/app-release.apk",
-  "gitee": "https://gitee.com/CrYinLang/EmuTravel/releases/download/1.0.1.0/app-release.apk",
+  "LastUpdate": "26-02-10-14-48",
+  "Version": "1.1.1.0",
+  "Build": "1110",
+  "github": "https://gh-proxy.com/https://github.com/CrYinLang/EmuTravel/releases/download/1.1.1.0/app-release.apk",
+  "gitee": "https://gitee.com/CrYinLang/EmuTravel/releases/download/1.1.1.0/app-release.apk",
   "qq": "https://qm.qq.com/q/pMEbF7ZFZK",
-  "describe": "第一个版本",
-  "Announcement": "欢迎体验1.0列车旅行\n公告:QQ群:1079052463\n官网:"
+  "describe": "EmuTravel内测",
+  "Announcement": "EmuTravel内测中\n公告:QQ群:1079052463\n官网:"
 }

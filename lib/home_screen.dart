@@ -191,12 +191,180 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
     });
   }
 
+  // 检测行程状态
+  String _getJourneyStatus() {
+    final journey = widget.journey;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final travelDay = DateTime(journey.travelDate.year, journey.travelDate.month, journey.travelDate.day);
+
+    // 检查是否已过期（旅行日期在今天之前）
+    if (travelDay.isBefore(today)) {
+      return '已过期';
+    }
+
+    // 检查是否是今天
+    if (travelDay == today) {
+      // 解析上车时间
+      final departureTime = _parseTime(journey.departureTime);
+      if (departureTime == null) return '今天';
+
+      // 计算实际上车时间（考虑跨天）
+      final actualDeparture = DateTime(
+        journey.travelDate.year,
+        journey.travelDate.month,
+        journey.travelDate.day,
+        departureTime.hour,
+        departureTime.minute,
+      );
+
+      // 解析下车时间
+      final arrivalTime = _parseTime(journey.arrivalTime);
+      if (arrivalTime == null) return '今天';
+
+      // 计算实际下车时间（考虑跨天）
+      int dayOffset = 0;
+      final totalDuration = journey.getTotalDuration();
+      if (totalDuration.contains('跨')) {
+        // 从时长中提取跨天天数
+        final match = RegExp(r'跨(\d+)天').firstMatch(totalDuration);
+        if (match != null) {
+          dayOffset = int.tryParse(match.group(1) ?? '0') ?? 0;
+        }
+      }
+
+      final actualArrival = DateTime(
+        journey.travelDate.year,
+        journey.travelDate.month,
+        journey.travelDate.day + dayOffset,
+        arrivalTime.hour,
+        arrivalTime.minute,
+      );
+
+      // 检查状态
+      if (now.isAfter(actualArrival)) {
+        return '已到达';
+      } else if (now.isAfter(actualDeparture)) {
+        return '已上车';
+      } else {
+        return '今天';
+      }
+    }
+
+    // 未来行程
+    final difference = travelDay.difference(today).inDays;
+    if (difference == 1) {
+      return '明天';
+    } else if (difference == 2) {
+      return '后天';
+    } else if (difference > 0) {
+      return '$difference天后';
+    } else {
+      return '今天';
+    }
+  }
+
+  DateTime? _parseTime(String timeStr) {
+    if (timeStr.isEmpty || timeStr == '--:--') return null;
+    final parts = timeStr.split(':');
+    if (parts.length < 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+
+    return DateTime(2000, 1, 1, hour, minute);
+  }
+
+  // 获取状态颜色
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case '已过期':
+      case '已到达':
+        return Colors.red;
+      case '已上车':
+        return Colors.green;
+      case '今天':
+        return Colors.orange;
+      case '明天':
+      case '后天':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // 检测站点状态
+  String _getStationStatus(StationDetail station, Journey journey, bool isFrom, bool isTo) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final travelDay = DateTime(journey.travelDate.year, journey.travelDate.month, journey.travelDate.day);
+
+    // 检查是否已过期
+    if (travelDay.isBefore(today)) {
+      return '已过';
+    }
+
+    // 检查是否是今天
+    if (travelDay == today) {
+      // 解析站点到达时间
+      final arrivalTime = _parseTime(station.arrivalTime);
+      final departureTime = _parseTime(station.departureTime);
+
+      if (arrivalTime != null && departureTime != null) {
+        // 计算实际时间（考虑跨天）
+        int dayOffset = station.dayDifference;
+        final actualArrival = DateTime(
+          journey.travelDate.year,
+          journey.travelDate.month,
+          journey.travelDate.day + dayOffset,
+          arrivalTime.hour,
+          arrivalTime.minute,
+        );
+
+        final actualDeparture = DateTime(
+          journey.travelDate.year,
+          journey.travelDate.month,
+          journey.travelDate.day + dayOffset,
+          departureTime.hour,
+          departureTime.minute,
+        );
+
+        // 检查状态
+        if (now.isAfter(actualDeparture)) {
+          return '已过';
+        } else if (now.isAfter(actualArrival)) {
+          return station.stayTime > 0 ? '停站中' : '已到';
+        } else {
+          return '未到';
+        }
+      }
+    }
+
+    return '';
+  }
+
+  // 获取站点状态颜色
+  Color _getStationStatusColor(String status) {
+    switch (status) {
+      case '已过':
+        return Colors.red;
+      case '已到':
+      case '停站中':
+        return Colors.green;
+      case '未到':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final journey = widget.journey;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final now = DateTime.now();
-    final isPast = journey.travelDate.isBefore(DateTime(now.year, now.month, now.day));
+    final status = _getJourneyStatus();
+    final statusColor = _getStatusColor(status);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -215,7 +383,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 头部：车次和日期
+                  // 头部：车次和状态
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -243,25 +411,29 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          if (isPast)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade300,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text(
-                                '已过期',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: statusColor,
+                                width: 1,
                               ),
                             ),
+                            child: Text(
+                              status,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: statusColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       Row(
@@ -440,18 +612,13 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
   Widget _buildExpandedContent() {
     final journey = widget.journey;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final status = _getJourneyStatus();
 
     // 获取起始终到区间的站点索引
-    String normalizeStationName(String name) {
-      // 移除 站 字进行标准化处理
-      return name.replaceAll('站', '').trim();
-    }
-    
     final fromIndex = journey.stations.indexWhere((station) =>
-    normalizeStationName(station.stationName) == normalizeStationName(journey.fromStation));
+    _normalizeStationName(station.stationName) == _normalizeStationName(journey.fromStation));
     final toIndex = journey.stations.indexWhere((station) =>
-    normalizeStationName(station.stationName) == normalizeStationName(journey.toStation));
-
+    _normalizeStationName(station.stationName) == _normalizeStationName(journey.toStation));
 
     // 确保索引有效且起始站索引小于终点站索引
     final startIndex = fromIndex >= 0 ? fromIndex : 0;
@@ -459,6 +626,11 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
 
     // 获取区间内的站点列表
     final intervalStations = journey.stations.sublist(startIndex, endIndex + 1);
+
+    // 计算起始站的绝对天数差（作为基准）
+    final baseDayDiff = startIndex >= 0 && startIndex < journey.stations.length
+        ? journey.stations[startIndex].dayDifference
+        : 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -472,7 +644,34 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 行程基本信息 - 新格式
+          // 行程状态信息
+          _buildInfoSection('行程状态', Icons.access_time, [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: _getStatusColor(status).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _getStatusColor(status),
+                  width: 1,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  '当前状态: $status',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _getStatusColor(status),
+                  ),
+                ),
+              ),
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // 行程基本信息
           _buildInfoSection('行程信息', Icons.info_outline, [
             // 第一行：车次和时长
             Container(
@@ -592,10 +791,12 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
 
           const SizedBox(height: 16),
 
-          // 站点详情 - 延长高度并只显示起始终到区间
+          // 站点详情
           _buildInfoSection('站点详情', Icons.train, [
             Container(
-              height: 400, // 延长到400px高度
+              constraints: const BoxConstraints(
+                maxHeight: 400,
+              ),
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -605,6 +806,13 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                   final isFrom = station.stationName == journey.fromStation;
                   final isTo = station.stationName == journey.toStation;
                   final globalIndex = startIndex + index;
+
+                  // 计算相对跨天天数（相对于起始站）
+                  final relativeDayDiff = station.dayDifference - baseDayDiff;
+
+                  // 检查站点状态
+                  final stationStatus = _getStationStatus(station, journey, isFrom, isTo);
+                  final stationStatusColor = _getStationStatusColor(stationStatus);
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -621,25 +829,50 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                     ),
                     child: Row(
                       children: [
-                        // 站点序号
-                        Container(
-                          width: 30,
-                          height: 30,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isFrom || isTo
-                                ? Colors.blue
-                                : Colors.grey.shade400,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${globalIndex + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                        // 站点序号和状态
+                        Column(
+                          children: [
+                            Container(
+                              width: 30,
+                              height: 30,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: isFrom || isTo
+                                    ? Colors.blue
+                                    : Colors.grey.shade400,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${globalIndex + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (stationStatus.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: stationStatusColor.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  stationStatus,
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    color: stationStatusColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         const SizedBox(width: 12),
 
@@ -676,7 +909,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                                       child: const Text(
                                         '上车站',
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: Colors.black,
                                           fontSize: 10,
                                         ),
                                       ),
@@ -696,7 +929,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                                       child: const Text(
                                         '下车站',
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: Colors.black,
                                           fontSize: 10,
                                         ),
                                       ),
@@ -732,14 +965,14 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                                   ),
                                 ],
                               ),
-                              if (station.dayDifference > 0)
+                              if (relativeDayDiff > 0)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
-                                    '跨天: +${station.dayDifference}天',
+                                    '跨天: +$relativeDayDiff天',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.purple.shade600,
+                                      color: Colors.green,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -789,6 +1022,11 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
     );
   }
 
+  // 添加站点名称标准化方法
+  String _normalizeStationName(String name) {
+    return name.replaceAll('站', '').trim();
+  }
+
   Widget _buildInfoSection(String title, IconData icon, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -830,7 +1068,6 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 新格式的详情信息
                 _buildDialogInfoRow('车次', journey.trainCode),
                 _buildDialogInfoRow('时长', journey.getTotalDuration().replaceAll('\n', ' ')),
                 _buildDialogInfoRow('始终站', '${journey.fromStation}->${journey.toStation}'),
