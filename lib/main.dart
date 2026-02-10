@@ -256,7 +256,6 @@ class _EmuTravelState extends State<EmuTravel> {
 
             // 检查内测资格
             final isInternal = isTrue(command['isInternal']?.toString());
-
             final user = command['user']?.toString() ?? '';
             final qq = command['qq']?.toString() ?? '';
 
@@ -264,6 +263,8 @@ class _EmuTravelState extends State<EmuTravel> {
               _showInternalTestQualificationDialog(myDeviceID);
               return;
             } else {
+              // 重试成功，先关闭内测资格弹窗，再显示欢迎弹窗
+              _closeQualificationDialog();
               _showWelcomeDialog(user, qq, myDeviceID);
             }
 
@@ -296,6 +297,13 @@ class _EmuTravelState extends State<EmuTravel> {
       }
     } catch (e) {
       debugPrint('检查远程命令失败: $e');
+    }
+  }
+
+  void _closeQualificationDialog() {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -353,13 +361,20 @@ class _EmuTravelState extends State<EmuTravel> {
                   label: const Text('复制ID'),
                 ),
                 const SizedBox(width: 8),
-                // 重试按钮 - 不关闭弹窗
-                OutlinedButton(
-                  onPressed: () {
-                    // 不关闭弹窗，直接重试检查
-                    _checkRemoteCommands();
+                // 重试按钮 - 添加加载状态
+                StatefulBuilder(
+                  builder: (context, setState) {
+                    return OutlinedButton(
+                      onPressed: () async {
+                        // 显示加载状态
+                        setState(() {});
+
+                        // 重新检查命令
+                        await _checkRemoteCommands();
+                      },
+                      child: const Text('重试'),
+                    );
                   },
-                  child: const Text('重试'),
                 ),
                 // 退出按钮
                 ElevatedButton(
