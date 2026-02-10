@@ -308,6 +308,7 @@ class _EmuTravelState extends State<EmuTravel> {
   }
 
   void _showInternalTestQualificationDialog(String deviceID) {
+    _closeQualificationDialog();
     final context = navigatorKey.currentContext;
     if (context != null) {
       showDialog(
@@ -321,7 +322,7 @@ class _EmuTravelState extends State<EmuTravel> {
                 children: [
                   Icon(Icons.warning_amber, color: Colors.orange),
                   SizedBox(width: 8),
-                  Text('内测资格证书缺失!'),
+                  Text('内测资格缺失!'),
                 ],
               ),
               content: Column(
