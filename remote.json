@@ -1,6 +1,6 @@
 [
   {
-    "id": "653846716986",
+    "id": "185856915448",
     "isInternal": "True",
     "user": "Devloper",
     "qq": "1079052463",
@@ -262,5 +262,11 @@
     "qq":"3264973260",
     "operation": "exits",
     "message": "请提出意见与反馈bug,感谢支持!"
+  },
+  {
+    "Public": "True",
+    "isInternal": "True",
+    "operation": "exit",
+    "message": ""
   }
 ]

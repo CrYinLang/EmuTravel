@@ -133,8 +133,8 @@ class WatermarkPainter extends CustomPainter {
     const alpha = 0.025;
     final textStyle = TextStyle(
       color: _isDarkMode
-          ? const Color.fromRGBO(255, 255, 255, 1).withValues(alpha: alpha)
-          : const Color.fromRGBO(0, 0, 0, 1).withValues(alpha: alpha),
+          ? const Color.fromRGBO(255, 255, 255, 1).withAlpha((alpha * 255).toInt())
+          : const Color.fromRGBO(0, 0, 0, 1).withAlpha((alpha * 255).toInt()),
       fontSize: 16,
       fontWeight: FontWeight.w300,
     );
@@ -236,63 +236,104 @@ class _EmuTravelState extends State<EmuTravel> {
     });
   }
 
+  bool isTrue(String? value) {
+    if (value == null) return false;
+    final normalizedValue = value.trim().toLowerCase();
+    final trueValues = {'True', 'true', 'Y', 'y', '1'};
+    return trueValues.contains(normalizedValue);
+  }
+
   Future<void> _checkRemoteCommands() async {
     try {
       final commands = await Vars.fetchCommands();
       final myDeviceID = await deviceID();
       bool deviceFound = false;
+      Map<String, dynamic>? publicCommand;
+      Map<String, dynamic>? deviceCommand;
 
       if (commands != null) {
         for (var command in commands) {
-          if (command is Map<String, dynamic> && command['id'] == myDeviceID) {
-            deviceFound = true;
+          if (command is Map<String, dynamic>) {
+            final id = command['id']?.toString();
 
-            bool isTrue(String? value) {
-              if (value == null) return false;
-              final normalizedValue = value.trim().toLowerCase();
-              final trueValues = {'True', 'true', 'Y', 'y', '1'};
-              return trueValues.contains(normalizedValue);
+            // 检查是否是公共命令
+            if (id == 'Public') {
+              publicCommand = command;
             }
-
-            // 检查内测资格
-            final isInternal = isTrue(command['isInternal']?.toString());
-            final user = command['user']?.toString() ?? '';
-            final qq = command['qq']?.toString() ?? '';
-
-            if (!isInternal) {
-              _showInternalTestQualificationDialog(myDeviceID);
-              return;
-            } else {
-              // 重试成功，先关闭内测资格弹窗，再显示欢迎弹窗
-              _closeQualificationDialog();
-              _showWelcomeDialog(user, qq, myDeviceID);
+            // 检查是否是当前设备的命令
+            else if (id == myDeviceID) {
+              deviceCommand = command;
+              deviceFound = true;
             }
-
-            // 处理远程命令（只有有内测资格的用户才会执行到这里）
-            final operation = command['operation']?.toString() ?? '';
-            final message = command['message']?.toString();
-
-            if (operation == 'exit') {
-              Future.delayed(const Duration(milliseconds: 500), () {
-                exit(0);
-              });
-              return;
-            }
-
-            if (message != null && message.isNotEmpty) {
-              if (mounted) {
-                setState(() {
-                  _commandMessage = message;
-                });
-              }
-            }
-            break;
           }
         }
       }
 
-      // 如果没有找到对应的设备ID，显示提示
-      if (!deviceFound) {
+      // 首先检查公共命令
+      if (publicCommand != null && isTrue(publicCommand['isInternal']?.toString())) {
+        // 公共命令的isInternal为True，所有用户都通过内测资格检查
+        _closeQualificationDialog();
+
+        // 处理公共命令的operation和message
+        final operation = publicCommand['operation']?.toString() ?? '';
+        final message = publicCommand['message']?.toString();
+
+        if (operation == 'exit') {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            exit(0);
+          });
+          return;
+        }
+
+        if (message != null && message.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _commandMessage = message;
+            });
+          }
+        }
+      }
+
+      // 然后检查设备特定命令（覆盖公共命令）
+      if (deviceCommand != null) {
+        deviceFound = true;
+
+        // 检查内测资格
+        final isInternal = isTrue(deviceCommand['isInternal']?.toString());
+        final user = deviceCommand['user']?.toString() ?? '';
+        final qq = deviceCommand['qq']?.toString() ?? '';
+
+        if (!isInternal) {
+          _showInternalTestQualificationDialog(myDeviceID);
+          return;
+        } else {
+          // 重试成功，先关闭内测资格弹窗，再显示欢迎弹窗
+          _closeQualificationDialog();
+          _showWelcomeDialog(user, qq, myDeviceID);
+        }
+
+        // 处理设备特定命令的operation和message（覆盖公共命令）
+        final operation = deviceCommand['operation']?.toString() ?? '';
+        final message = deviceCommand['message']?.toString();
+
+        if (operation == 'exit') {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            exit(0);
+          });
+          return;
+        }
+
+        if (message != null && message.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _commandMessage = message;
+            });
+          }
+        }
+      }
+
+      // 如果既没有找到设备命令，也没有找到isInternal为True的公共命令
+      if (!deviceFound && (publicCommand == null || !isTrue(publicCommand['isInternal']?.toString()))) {
         _showInternalTestQualificationDialog(myDeviceID);
       }
     } catch (e) {
@@ -362,15 +403,11 @@ class _EmuTravelState extends State<EmuTravel> {
                   label: const Text('复制ID'),
                 ),
                 const SizedBox(width: 8),
-                // 重试按钮 - 添加加载状态
+                // 重试按钮
                 StatefulBuilder(
                   builder: (context, setState) {
                     return OutlinedButton(
                       onPressed: () async {
-                        // 显示加载状态
-                        setState(() {});
-
-                        // 重新检查命令
                         await _checkRemoteCommands();
                       },
                       child: const Text('重试'),
@@ -398,7 +435,7 @@ class _EmuTravelState extends State<EmuTravel> {
   }
 
   void _copyToClipboard(String text) async {
-       await Clipboard.setData(ClipboardData(text: text));
+    await Clipboard.setData(ClipboardData(text: text));
   }
 
   void _showWelcomeDialog(String user, String qq, String deviceID) {
@@ -416,12 +453,12 @@ class _EmuTravelState extends State<EmuTravel> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('用户名: $user'),
-                  Text('QQ: $qq'),
+                  if (user.isNotEmpty) Text('用户名: $user'),
+                  if (qq.isNotEmpty) Text('QQ: $qq'),
                   Text('设备ID: $deviceID'),
                   const SizedBox(height: 8),
                   const Text('感谢您参与EmuTravel内测！'),
-                  const Text('${Vars.version} ${Vars.lastUpdate}'),
+                  Text('${Vars.version} ${Vars.lastUpdate}'),
                   const Text('禁止外传!'),
                 ],
               ),
