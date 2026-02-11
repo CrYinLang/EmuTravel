@@ -11,7 +11,6 @@ import 'journey_provider.dart';
 import 'journey_model.dart';
 import 'tool.dart';
 import 'home_screen.dart';
-import 'main.dart';
 
 class AddJourneyPage extends StatefulWidget {
   const AddJourneyPage({super.key});
@@ -197,10 +196,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
           'https://search.12306.cn/search/v1/train/search?keyword=$trainNumber&date=$_formattedDate';
       // final url =
       //     'http://10.166.135.96:8888/code';
-      final response = await http.get(
-        Uri.parse(url),
-        headers: Vars.normalHeaders,
-      );
+      final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == true) {
@@ -1251,8 +1247,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              '${_getStationName(item['from_station'])} → ${_getStationName(
-                  item['to_station'])}',
+              '${_getStationName(item['from_station'])} → ${_getStationName(item['to_station'])}',
             ),
             trailing: AnimatedIcon(
               icon: AnimatedIcons.arrow_menu,
@@ -1656,8 +1651,8 @@ class _AddJourneyPageState extends State<AddJourneyPage>
           final selectedArrTime = toArr ?? toDep ?? '--:--';
 
           // 计算跨天信息
-          final fromDayDiff = fromStation['DayDifference'] as int? ?? 0;
-          final toDayDiff = toStation['DayDifference'] as int? ?? 0;
+          final fromDayDiff = int.tryParse(fromStation['DayDifference']?.toString() ?? '0') ?? 0;
+          final toDayDiff = int.tryParse(toStation['DayDifference']?.toString() ?? '0') ?? 0;
           final dayOffset = (toDayDiff - fromDayDiff).abs();
 
           if (selectedDepTime != '--:--' && selectedArrTime != '--:--') {
@@ -1887,13 +1882,13 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                           children: [
                             _stationRow(
                               '始发站',
-                              _getStationName(item['from_station']),
+                              "${_getStationName(item['from_station'])}站",
                               expired ? Colors.grey : Colors.green,
                             ),
                             const SizedBox(height: 8),
                             _stationRow(
                               '终点站',
-                              _getStationName(item['to_station']),
+                              "${_getStationName(item['to_station'])}站",
                               expired ? Colors.grey : Colors.red,
                             ),
                           ],
@@ -2391,21 +2386,11 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                                     child: Row(
                                       children: [
                                         Text(
-                                          name,
+                                          "${name}站",
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w500,
-                                            color: isSelectable
-                                                ? (!isSelectableStation
-                                                ? Colors.grey
-                                                : Theme.of(context).colorScheme.onSurface)
-                                                : (isFromStationOriginal || isToStationOriginal
-                                                ? Theme.of(context).primaryColor
-                                                : passed
-                                                ? (isDark ? Colors.orange.shade300 : Colors.orange.shade700)
-                                                : terminal
-                                                ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
-                                                : Theme.of(context).colorScheme.onSurface),
+                                            color: Theme.of(context).colorScheme.onSurface,
                                           ),
                                         ),
                                         if (!isSelectable && passed)

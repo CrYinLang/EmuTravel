@@ -22,9 +22,9 @@ class HomeScreen extends StatelessWidget {
                 onSelected: (value) {
                   if (value == 'sort') {
                     provider.sortByDate();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('已按日期排序')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('已按日期排序')));
                   } else if (value == 'clear') {
                     showDialog(
                       context: context,
@@ -85,11 +85,7 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.train_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.train_outlined, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     '还没有添加行程',
@@ -102,10 +98,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     '点击右下角按钮添加',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -126,9 +119,9 @@ class HomeScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => const AddJourneyPage()),
-        ),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (context) => const AddJourneyPage())),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
@@ -146,17 +139,14 @@ class JourneyCard extends StatefulWidget {
   final Journey journey;
   final VoidCallback onDelete;
 
-  const JourneyCard({
-    super.key,
-    required this.journey,
-    required this.onDelete,
-  });
+  const JourneyCard({super.key, required this.journey, required this.onDelete});
 
   @override
   State<JourneyCard> createState() => _JourneyCardState();
 }
 
-class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStateMixin {
+class _JourneyCardState extends State<JourneyCard>
+    with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   late AnimationController _animationController;
   late Animation<double> _animation;
@@ -196,7 +186,11 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
     final journey = widget.journey;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final travelDay = DateTime(journey.travelDate.year, journey.travelDate.month, journey.travelDate.day);
+    final travelDay = DateTime(
+      journey.travelDate.year,
+      journey.travelDate.month,
+      journey.travelDate.day,
+    );
 
     // 检查是否已过期（旅行日期在今天之前）
     if (travelDay.isBefore(today)) {
@@ -295,10 +289,19 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
   }
 
   // 检测站点状态
-  String _getStationStatus(StationDetail station, Journey journey, bool isFrom, bool isTo) {
+  String _getStationStatus(
+    StationDetail station,
+    Journey journey,
+    bool isFrom,
+    bool isTo,
+  ) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final travelDay = DateTime(journey.travelDate.year, journey.travelDate.month, journey.travelDate.day);
+    final travelDay = DateTime(
+      journey.travelDate.year,
+      journey.travelDate.month,
+      journey.travelDate.day,
+    );
 
     // 检查是否已过期
     if (travelDay.isBefore(today)) {
@@ -369,9 +372,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
           // 卡片头部（可点击区域）
@@ -420,10 +421,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: statusColor,
-                                width: 1,
-                              ),
+                              border: Border.all(color: statusColor, width: 1),
                             ),
                             child: Text(
                               status,
@@ -452,7 +450,9 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                                 context: context,
                                 builder: (context) => AlertDialog(
                                   title: const Text('确认删除'),
-                                  content: Text('确定要删除 ${journey.trainCode} 次列车吗？'),
+                                  content: Text(
+                                    '确定要删除 ${journey.trainCode} 次列车吗？',
+                                  ),
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.pop(context),
@@ -494,7 +494,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              journey.fromStation,
+                              '${journey.fromStation}站',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -538,7 +538,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              journey.toStation,
+                              '${journey.toStation}站',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Theme.of(context).hintColor,
@@ -583,12 +583,30 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                             color: Theme.of(context).hintColor,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            '${journey.stations.length} 个站点',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(context).hintColor,
-                            ),
+                          // 修改这里：计算区间站点数量
+                          Consumer<JourneyProvider>(
+                            builder: (context, provider, child) {
+                              // 获取起始终到区间的站点索引
+                              final fromIndex = journey.stations.indexWhere((station) =>
+                              _normalizeStationName(station.stationName) == _normalizeStationName(journey.fromStation));
+                              final toIndex = journey.stations.indexWhere((station) =>
+                              _normalizeStationName(station.stationName) == _normalizeStationName(journey.toStation));
+
+                              // 确保索引有效且起始站索引小于终点站索引
+                              final startIndex = fromIndex >= 0 ? fromIndex : 0;
+                              final endIndex = toIndex >= 0 && toIndex >= startIndex ? toIndex : journey.stations.length - 1;
+
+                              // 计算区间站点数量
+                              final intervalCount = endIndex - startIndex + 1;
+
+                              return Text(
+                                '$intervalCount 个站点',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(context).hintColor,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -615,14 +633,22 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
     final status = _getJourneyStatus();
 
     // 获取起始终到区间的站点索引
-    final fromIndex = journey.stations.indexWhere((station) =>
-    _normalizeStationName(station.stationName) == _normalizeStationName(journey.fromStation));
-    final toIndex = journey.stations.indexWhere((station) =>
-    _normalizeStationName(station.stationName) == _normalizeStationName(journey.toStation));
+    final fromIndex = journey.stations.indexWhere(
+      (station) =>
+          _normalizeStationName(station.stationName) ==
+          _normalizeStationName(journey.fromStation),
+    );
+    final toIndex = journey.stations.indexWhere(
+      (station) =>
+          _normalizeStationName(station.stationName) ==
+          _normalizeStationName(journey.toStation),
+    );
 
     // 确保索引有效且起始站索引小于终点站索引
     final startIndex = fromIndex >= 0 ? fromIndex : 0;
-    final endIndex = toIndex >= 0 && toIndex >= startIndex ? toIndex : journey.stations.length - 1;
+    final endIndex = toIndex >= 0 && toIndex >= startIndex
+        ? toIndex
+        : journey.stations.length - 1;
 
     // 获取区间内的站点列表
     final intervalStations = journey.stations.sublist(startIndex, endIndex + 1);
@@ -631,6 +657,9 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
     final baseDayDiff = startIndex >= 0 && startIndex < journey.stations.length
         ? journey.stations[startIndex].dayDifference
         : 0;
+
+
+
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -651,10 +680,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
               decoration: BoxDecoration(
                 color: _getStatusColor(status).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: _getStatusColor(status),
-                  width: 1,
-                ),
+                border: Border.all(color: _getStatusColor(status), width: 1),
               ),
               child: Center(
                 child: Text(
@@ -720,7 +746,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      '${journey.fromStation}->${journey.toStation}',
+                      '${journey.fromStation}站->${journey.toStation}站',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -794,9 +820,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
           // 站点详情
           _buildInfoSection('站点详情', Icons.train, [
             Container(
-              constraints: const BoxConstraints(
-                maxHeight: 400,
-              ),
+              constraints: const BoxConstraints(maxHeight: 400),
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -805,14 +829,20 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                   final station = intervalStations[index];
                   final isFrom = station.stationName == journey.fromStation;
                   final isTo = station.stationName == journey.toStation;
-                  final globalIndex = startIndex + index;
 
                   // 计算相对跨天天数（相对于起始站）
                   final relativeDayDiff = station.dayDifference - baseDayDiff;
 
                   // 检查站点状态
-                  final stationStatus = _getStationStatus(station, journey, isFrom, isTo);
-                  final stationStatusColor = _getStationStatusColor(stationStatus);
+                  final stationStatus = _getStationStatus(
+                    station,
+                    journey,
+                    isFrom,
+                    isTo,
+                  );
+                  final stationStatusColor = _getStationStatusColor(
+                    stationStatus,
+                  );
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -843,7 +873,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
-                                '${globalIndex + 1}',
+                                '${index + 1}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -859,7 +889,9 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: stationStatusColor.withValues(alpha: 0.2),
+                                  color: stationStatusColor.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -884,7 +916,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                               Row(
                                 children: [
                                   Text(
-                                    station.stationName,
+                                    '${station.stationName}站',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: isFrom || isTo
@@ -892,7 +924,9 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                                           : FontWeight.normal,
                                       color: isFrom || isTo
                                           ? Colors.blue.shade700
-                                          : Theme.of(context).colorScheme.onSurface,
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                     ),
                                   ),
                                   if (isFrom) ...[
@@ -939,7 +973,8 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
                               ),
                               const SizedBox(height: 4),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '到达: ${station.arrivalTime}',
@@ -1009,15 +1044,65 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    _showSnack('分享功能开发中');
+                    _showRouteMapDialog(context);
                   },
                   icon: const Icon(Icons.share),
-                  label: const Text('分享行程'),
+                  label: const Text('线路图'),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _showRouteMapDialog(BuildContext context) {
+    final journey = widget.journey;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.width * 0.9 + 80, // 额外高度给标题栏
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 标题栏（不算在1:1比例内）
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${journey.trainCode}次列车线路图',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 1:1比例的白色框
+              Container(
+                width: MediaQuery.of(context).size.width * 0.9 - 32, // 减去padding
+                height: MediaQuery.of(context).size.width * 0.9 - 32, // 1:1比例
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1033,18 +1118,11 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
       children: [
         Row(
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -1053,6 +1131,23 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
       ],
     );
   }
+
+  int _getIntervalStationCount() {
+    final journey = widget.journey;
+
+    // 获取起始终到区间的站点索引
+    final fromIndex = journey.stations.indexWhere((station) =>
+    _normalizeStationName(station.stationName) == _normalizeStationName(journey.fromStation));
+    final toIndex = journey.stations.indexWhere((station) =>
+    _normalizeStationName(station.stationName) == _normalizeStationName(journey.toStation));
+
+    // 确保索引有效且起始站索引小于终点站索引
+    final startIndex = fromIndex >= 0 ? fromIndex : 0;
+    final endIndex = toIndex >= 0 && toIndex >= startIndex ? toIndex : journey.stations.length - 1;
+
+    return endIndex - startIndex + 1;
+  }
+
 
   void _showDetailDialog(BuildContext context) {
     final journey = widget.journey;
@@ -1069,15 +1164,32 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildDialogInfoRow('车次', journey.trainCode),
-                _buildDialogInfoRow('时长', journey.getTotalDuration().replaceAll('\n', ' ')),
-                _buildDialogInfoRow('始终站', '${journey.fromStation}->${journey.toStation}'),
-                _buildDialogInfoRow('乘车日期',
-                    '${journey.travelDate.year}-${journey.travelDate.month.toString().padLeft(2, '0')}-${journey.travelDate.day.toString().padLeft(2, '0')}',
-                    isBoldRed: true
+                _buildDialogInfoRow(
+                  '时长',
+                  journey.getTotalDuration().replaceAll('\n', ' '),
                 ),
-                _buildDialogInfoRow('列车时间', '${journey.departureTime}->${journey.arrivalTime}'),
-                _buildDialogInfoRow('站点数量', '${journey.stations.length} 个'),
-                _buildDialogInfoRow('添加方式', journey.isStation ? '车站查询' : '车次查询'),
+                _buildDialogInfoRow(
+                  '始终站',
+                  '${journey.fromStation}站->${journey.toStation}站',
+                ),
+                _buildDialogInfoRow(
+                  '乘车日期',
+                  '${journey.travelDate.year}-${journey.travelDate.month.toString().padLeft(2, '0')}-${journey.travelDate.day.toString().padLeft(2, '0')}',
+                  isBoldRed: true,
+                ),
+                _buildDialogInfoRow(
+                  '列车时间',
+                  '${journey.departureTime}->${journey.arrivalTime}',
+                ),
+                // 修改这里：显示区间站点数量而不是全程
+                _buildDialogInfoRow(
+                    '站点数量',
+                    '区间${_getIntervalStationCount()}个 / 全程${journey.stations.length}个'
+                ),
+                _buildDialogInfoRow(
+                  '添加方式',
+                  journey.isStation ? '车站查询' : '车次查询',
+                ),
               ],
             ),
           ),
@@ -1092,7 +1204,11 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildDialogInfoRow(String label, String value, {bool isBoldRed = false}) {
+  Widget _buildDialogInfoRow(
+    String label,
+    String value, {
+    bool isBoldRed = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -1101,9 +1217,7 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
             width: 80,
             child: Text(
               '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(
@@ -1111,22 +1225,13 @@ class _JourneyCardState extends State<JourneyCard> with SingleTickerProviderStat
               value,
               style: isBoldRed
                   ? const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              )
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    )
                   : null,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -1164,7 +1269,7 @@ class _StationSelectorModalState extends State<StationSelectorModal> {
         setState(() => _filtered = widget.stations);
       } else {
         setState(
-              () => _filtered = widget.stations.where((s) {
+          () => _filtered = widget.stations.where((s) {
             final n = s['name']?.toString().toLowerCase() ?? '';
             final p = s['pinyin']?.toString().toLowerCase() ?? '';
             final sc = s['short_code']?.toString().toLowerCase() ?? '';
@@ -1191,133 +1296,133 @@ class _StationSelectorModalState extends State<StationSelectorModal> {
   @override
   Widget build(BuildContext context) {
     return Container(
-        padding: const EdgeInsets.all(16),
-        height: MediaQuery.of(context).size.height * 0.8,
-        child: Column(
-          children: [
+      padding: const EdgeInsets.all(16),
+      height: MediaQuery.of(context).size.height * 0.8,
+      child: Column(
+        children: [
           Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _searchCtrl,
-          focusNode: _searchFocus,
-          decoration: InputDecoration(
-            hintText: '搜索车站名称、拼音、电报码',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
-          autofocus: false,
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '共 ${_filtered.length} 个车站',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).hintColor,
+                widget.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              if (_searchCtrl.text.isNotEmpty)
-                TextButton(
-                  onPressed: () {
-                    _searchCtrl.clear();
-                    _searchFocus.unfocus();
-                  },
-                  child: const Text('清空搜索'),
-                ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
             ],
           ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
+          const SizedBox(height: 12),
+          TextField(
+            controller: _searchCtrl,
+            focusNode: _searchFocus,
+            decoration: InputDecoration(
+              hintText: '搜索车站名称、拼音、电报码',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            autofocus: false,
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '共 ${_filtered.length} 个车站',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+                if (_searchCtrl.text.isNotEmpty)
+                  TextButton(
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      _searchFocus.unfocus();
+                    },
+                    child: const Text('清空搜索'),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
             child: _filtered.isEmpty
                 ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.train, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    '未找到相关车站',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).hintColor,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.train, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          '未找到相关车站',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            )
+                  )
                 : ListView.builder(
-              itemCount: _filtered.length,
-              itemBuilder: (context, index) {
-                final s = _filtered[index];
-                final code = s['code']?.toString() ?? '';
-                final name = s['name']?.toString() ?? '';
-                final telecode = s['telecode']?.toString() ?? '';
-                final city = s['city']?.toString() ?? '';
-                final selected = code == widget.selectedCode;
-                return ListTile(
-                  leading: Icon(
-                    Icons.train,
-                    color: selected
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).hintColor,
+                    itemCount: _filtered.length,
+                    itemBuilder: (context, index) {
+                      final s = _filtered[index];
+                      final code = s['code']?.toString() ?? '';
+                      final name = s['name']?.toString() ?? '';
+                      final telecode = s['telecode']?.toString() ?? '';
+                      final city = s['city']?.toString() ?? '';
+                      final selected = code == widget.selectedCode;
+                      return ListTile(
+                        leading: Icon(
+                          Icons.train,
+                          color: selected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).hintColor,
+                        ),
+                        title: Text(
+                          '$name站',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: selected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '$city市 电报码($telecode)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                        trailing: selected
+                            ? const Icon(Icons.check_circle, color: Colors.blue)
+                            : null,
+                        onTap: () => Navigator.of(context).pop({
+                          'code': code,
+                          'name': name,
+                          'telecode': telecode,
+                          'city': city,
+                        }),
+                      );
+                    },
                   ),
-                  title: Text(
-                    name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: selected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '$city ($telecode)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).hintColor,
-                    ),
-                  ),
-                  trailing: selected
-                      ? const Icon(Icons.check_circle, color: Colors.blue)
-                      : null,
-                  onTap: () => Navigator.of(context).pop({
-                    'code': code,
-                    'name': name,
-                    'telecode': telecode,
-                    'city': city,
-                  }),
-                );
-              },
-            ),
-        ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 }

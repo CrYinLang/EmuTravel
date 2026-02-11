@@ -12,32 +12,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
 import 'dart:convert';
-import 'dart:math';
 import 'dart:io';
 
 bool _isDarkMode = true;
-
-Future<String> deviceID() async {
-  final prefs = await SharedPreferences.getInstance();
-  String? storedDeviceID = prefs.getString('deviceID');
-
-  if (storedDeviceID != null && storedDeviceID.isNotEmpty) {
-    return storedDeviceID;
-  }
-
-  String newDeviceID = _generateDigitID();
-  await prefs.setString('deviceID', newDeviceID);
-  return newDeviceID;
-}
-
-String _generateDigitID() {
-  final random = Random();
-  StringBuffer buffer = StringBuffer();
-  for (int i = 0; i < 12; i++) {
-    buffer.write(random.nextInt(10));
-  }
-  return buffer.toString();
-}
 
 class Vars {
   static const String lastUpdate = '26-02-11-14-40';
@@ -48,17 +25,10 @@ class Vars {
   static const String commandServer =
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
 
-  static const Map<String, String> normalHeaders = {
-    'User-Agent':
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
-    'Accept': 'application/json',
-    'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
-  };
-
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
     try {
       final response = await http
-          .get(Uri.parse(urlServer), headers: normalHeaders)
+          .get(Uri.parse(urlServer))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -73,7 +43,7 @@ class Vars {
   static Future<Map<String, dynamic>?> fetchCommand() async {
     try {
       final response = await http
-          .get(Uri.parse(commandServer), headers: normalHeaders)
+          .get(Uri.parse(commandServer))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -264,49 +234,38 @@ class _EmuTravelState extends State<EmuTravel> {
       }
     });
 
-    return FutureBuilder<String>(
-      future: deviceID(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const MaterialApp(
-            home: Scaffold(body: Center(child: CircularProgressIndicator())),
-          );
-        }
-
-        return ChangeNotifierProvider(
-          create: (_) => JourneyProvider(),
-          child: MaterialApp(
-            title: 'EmuTravel',
-            navigatorKey: navigatorKey,
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              useMaterial3: true,
-              brightness: Brightness.light,
-            ),
-            darkTheme: ThemeData(
-              primarySwatch: Colors.blue,
-              useMaterial3: true,
-              brightness: Brightness.dark,
-            ),
-            themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: AnimatedTheme(
-              data: _isDarkMode
-                  ? ThemeData(
-                primarySwatch: Colors.blue,
-                useMaterial3: true,
-                brightness: Brightness.dark,
-              )
-                  : ThemeData(
-                primarySwatch: Colors.blue,
-                useMaterial3: true,
-                brightness: Brightness.light,
-              ),
-              duration: const Duration(milliseconds: 300),
-              child: HomePage(themeManager: _themeManager),
-            ),
+    return ChangeNotifierProvider(
+      create: (_) => JourneyProvider(),
+      child: MaterialApp(
+        title: 'EmuTravel',
+        navigatorKey: navigatorKey,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          useMaterial3: true,
+          brightness: Brightness.light,
+        ),
+        darkTheme: ThemeData(
+          primarySwatch: Colors.blue,
+          useMaterial3: true,
+          brightness: Brightness.dark,
+        ),
+        themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+        home: AnimatedTheme(
+          data: _isDarkMode
+              ? ThemeData(
+            primarySwatch: Colors.blue,
+            useMaterial3: true,
+            brightness: Brightness.dark,
+          )
+              : ThemeData(
+            primarySwatch: Colors.blue,
+            useMaterial3: true,
+            brightness: Brightness.light,
           ),
-        );
-      },
+          duration: const Duration(milliseconds: 300),
+          child: HomePage(themeManager: _themeManager),
+        ),
+      ),
     );
   }
 }
