@@ -1,6 +1,6 @@
 [
   {
-    "Public": "True",
+    "id": "Public",
     "isInternal": "True",
     "operation": "",
     "message": "调试中暂时不可用!"
