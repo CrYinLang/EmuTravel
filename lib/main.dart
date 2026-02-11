@@ -40,9 +40,9 @@ String _generateDigitID() {
 }
 
 class Vars {
-  static const String lastUpdate = '26-02-11-13-50';
+  static const String lastUpdate = '26-02-11-14-40';
   static const String version = '1.1.1.1';
-  static const String build = '1111';
+  static const String build = '111';
   static const String urlServer =
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
   static const String commandServer =
@@ -189,6 +189,7 @@ class _EmuTravelState extends State<EmuTravel> {
         });
         break;
       case 'update':
+        print(Vars.build);
         _handleUpdate();
         break;
       default:
