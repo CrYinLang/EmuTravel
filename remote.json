@@ -200,7 +200,7 @@
   {
     "Public": "False",
     "isInternal": "False",
-    "operation": "exit",
-    "message": ""
+    "operation": "",
+    "message": "调试中暂时不可用!"
   }
 ]
