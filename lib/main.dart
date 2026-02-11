@@ -42,7 +42,7 @@ String _generateDigitID() {
 class Vars {
   static const String lastUpdate = '26-02-11-14-40';
   static const String version = '1.1.1.1';
-  static const String build = '111';
+  static const String build = '1111';
   static const String urlServer =
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
   static const String commandServer =
@@ -189,7 +189,6 @@ class _EmuTravelState extends State<EmuTravel> {
         });
         break;
       case 'update':
-        print(Vars.build);
         _handleUpdate();
         break;
       default:
@@ -199,27 +198,21 @@ class _EmuTravelState extends State<EmuTravel> {
 
 // 直接处理更新操作
   Future<void> _handleUpdate() async {
-    try {
-      final versionInfo = await Vars.fetchVersionInfo();
-      if (versionInfo != null) {
-        final remoteBuild = versionInfo['Build']?.toString() ?? '';
-        final currentBuild = Vars.build;
+    final versionInfo = await Vars.fetchVersionInfo();
+    if (versionInfo != null) {
+      final remoteBuild = versionInfo['Build']?.toString() ?? '';
+      final currentBuild = Vars.build;
 
-        if (remoteBuild.isNotEmpty &&
-            int.tryParse(remoteBuild) != null &&
-            int.tryParse(currentBuild) != null) {
-          final remoteBuildNum = int.parse(remoteBuild);
-          final currentBuildNum = int.parse(currentBuild);
+      if (remoteBuild.isNotEmpty &&
+          int.tryParse(remoteBuild) != null &&
+          int.tryParse(currentBuild) != null) {
+        final remoteBuildNum = int.parse(remoteBuild);
+        final currentBuildNum = int.parse(currentBuild);
 
-          if (remoteBuildNum > currentBuildNum && mounted && navigatorKey.currentContext != null) {
-            UpdateUI.showUpdateFlow(navigatorKey.currentContext!);
-          } else {
-            debugPrint('当前已是最新版本，无需更新');
-          }
+        if (remoteBuildNum > currentBuildNum && mounted && navigatorKey.currentContext != null) {
+          UpdateUI.showUpdateFlow(navigatorKey.currentContext!);
         }
       }
-    } catch (e) {
-      debugPrint('检查更新失败: $e');
     }
   }
 
