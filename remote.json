@@ -1,8 +1,8 @@
 [
   {
     "id": "Public",
-    "isInternal": "True",
-    "operation": "exit",
+    "isInternal": "False",
+    "operation": "",
     "message": ""
   },
   {
