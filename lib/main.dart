@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'home_screen.dart';
 import 'about_page.dart';
 import 'settings.dart';
+import 'update.dart';
 
 import 'journey_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -183,20 +184,41 @@ class _EmuTravelState extends State<EmuTravel> {
   void _handleOperation(String operation) {
     switch (operation) {
       case 'exit':
-      // 直接退出应用，不显示通知
         Future.delayed(const Duration(milliseconds: 100), () {
           exit(0);
         });
         break;
-    // 可以在这里添加更多操作
-    // case 'restart':
-    //   _restartApp();
-    //   break;
-    // case 'update':
-    //   _showUpdateDialog();
-    //   break;
+      case 'update':
+        _handleUpdate();
+        break;
       default:
         debugPrint('未知操作: $operation');
+    }
+  }
+
+// 直接处理更新操作
+  Future<void> _handleUpdate() async {
+    try {
+      final versionInfo = await Vars.fetchVersionInfo();
+      if (versionInfo != null) {
+        final remoteBuild = versionInfo['Build']?.toString() ?? '';
+        final currentBuild = Vars.build;
+
+        if (remoteBuild.isNotEmpty &&
+            int.tryParse(remoteBuild) != null &&
+            int.tryParse(currentBuild) != null) {
+          final remoteBuildNum = int.parse(remoteBuild);
+          final currentBuildNum = int.parse(currentBuild);
+
+          if (remoteBuildNum > currentBuildNum && mounted && navigatorKey.currentContext != null) {
+            UpdateUI.showUpdateFlow(navigatorKey.currentContext!);
+          } else {
+            debugPrint('当前已是最新版本，无需更新');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('检查更新失败: $e');
     }
   }
 
