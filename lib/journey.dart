@@ -2386,7 +2386,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                                     child: Row(
                                       children: [
                                         Text(
-                                          "${name}站",
+                                          "$name站",
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w500,

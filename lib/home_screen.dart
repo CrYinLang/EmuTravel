@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'journey.dart';
 import 'journey_provider.dart';
 import 'journey_model.dart';
+import 'linemap.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -1063,50 +1065,15 @@ class _JourneyCardState extends State<JourneyCard>
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        insetPadding: EdgeInsets.zero,
-        child: Container(
+        insetPadding: const EdgeInsets.all(20),
+        child: SizedBox(
           width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.width * 0.9 + 80, // 额外高度给标题栏
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题栏（不算在1:1比例内）
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${journey.trainCode}次列车线路图',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // 1:1比例的白色框
-              Container(
-                width: MediaQuery.of(context).size.width * 0.9 - 32, // 减去padding
-                height: MediaQuery.of(context).size.width * 0.9 - 32, // 1:1比例
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ],
-          ),
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: LineMapDialog(journey: journey),
         ),
       ),
     );
   }
-
   // 添加站点名称标准化方法
   String _normalizeStationName(String name) {
     return name.replaceAll('站', '').trim();
