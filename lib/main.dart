@@ -49,9 +49,9 @@ String calculateMD5(String input) {
 }
 
 class Vars {
-  static const String lastUpdate = '26-02-09-16-00';
-  static const String version = '1.1.1.0';
-  static const String build = '1110';
+  static const String lastUpdate = '26-02-11-14-30'; // 更新时间
+  static const String version = '1.1.1.1'; // 版本号增加
+  static const String build = '1111'; // 构建号增加
   static const String urlServer = 'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
   static const String commandServer = 'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
 
@@ -122,7 +122,7 @@ class ThemeManager with ChangeNotifier {
   }
 }
 
-//水印
+// 水印
 class WatermarkPainter extends CustomPainter {
   final String deviceID;
 
@@ -236,10 +236,10 @@ class _EmuTravelState extends State<EmuTravel> {
     });
   }
 
-  bool isTrue(String? value) {
+  bool _isTrue(String? value) {
     if (value == null) return false;
     final normalizedValue = value.trim().toLowerCase();
-    final trueValues = {'True', 'true', 'Y', 'y', '1'};
+    final trueValues = {'true', 'y', '1'};
     return trueValues.contains(normalizedValue);
   }
 
@@ -247,93 +247,107 @@ class _EmuTravelState extends State<EmuTravel> {
     try {
       final commands = await Vars.fetchCommands();
       final myDeviceID = await deviceID();
-      bool deviceFound = false;
+
+      if (commands == null) {
+        debugPrint('未获取到远程命令');
+        return;
+      }
+
+      // 查找公共命令和设备特定命令
       Map<String, dynamic>? publicCommand;
       Map<String, dynamic>? deviceCommand;
 
-      if (commands != null) {
-        for (var command in commands) {
-          if (command is Map<String, dynamic>) {
-            final id = command['id']?.toString();
+      for (var command in commands) {
+        if (command is Map<String, dynamic>) {
+          final id = command['id']?.toString();
 
-            // 检查是否是公共命令
-            if (id == 'Public') {
-              publicCommand = command;
-            }
-            // 检查是否是当前设备的命令
-            else if (id == myDeviceID) {
-              deviceCommand = command;
-              deviceFound = true;
-            }
+          if (id == 'Public') {
+            publicCommand = command;
+          } else if (id == myDeviceID) {
+            deviceCommand = command;
           }
         }
       }
 
-      // 首先检查公共命令
-      if (publicCommand != null && isTrue(publicCommand['isInternal']?.toString())) {
-        // 公共命令的isInternal为True，所有用户都通过内测资格检查
+      // 处理公共命令
+      if (publicCommand != null && _isTrue(publicCommand['isInternal']?.toString())) {
+        // 公共命令通过，所有用户都有内测资格
         _closeQualificationDialog();
 
-        // 处理公共命令的operation和message
-        final operation = publicCommand['operation']?.toString() ?? '';
-        final message = publicCommand['message']?.toString();
+        // 处理公共命令的消息
+        final publicMessage = publicCommand['message']?.toString();
+        if (publicMessage != null && publicMessage.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _commandMessage = publicMessage;
+            });
+          }
+        }
 
-        if (operation == 'exit') {
+        // 处理公共命令的操作
+        final publicOperation = publicCommand['operation']?.toString() ?? '';
+        if (publicOperation == 'exit') {
           Future.delayed(const Duration(milliseconds: 500), () {
             exit(0);
           });
           return;
         }
 
-        if (message != null && message.isNotEmpty) {
-          if (mounted) {
-            setState(() {
-              _commandMessage = message;
-            });
-          }
+        // 显示公共命令的欢迎弹窗（如果有用户信息的话）
+        final publicUser = publicCommand['user']?.toString() ?? '';
+        final publicQQ = publicCommand['qq']?.toString() ?? '';
+        if (publicUser.isNotEmpty || publicQQ.isNotEmpty) {
+          _showWelcomeDialog(publicUser, publicQQ, myDeviceID);
+        } else {
+          // 只显示基础欢迎弹窗
+          _showBasicWelcomeDialog(myDeviceID);
         }
+
+        return; // 公共命令处理完毕，不再检查设备特定命令
       }
 
-      // 然后检查设备特定命令（覆盖公共命令）
+      // 如果没有公共命令或公共命令的isInternal不为True，则检查设备特定命令
       if (deviceCommand != null) {
-        deviceFound = true;
-
-        // 检查内测资格
-        final isInternal = isTrue(deviceCommand['isInternal']?.toString());
-        final user = deviceCommand['user']?.toString() ?? '';
-        final qq = deviceCommand['qq']?.toString() ?? '';
+        final isInternal = _isTrue(deviceCommand['isInternal']?.toString());
 
         if (!isInternal) {
+          // 设备没有内测资格
           _showInternalTestQualificationDialog(myDeviceID);
           return;
         } else {
-          // 重试成功，先关闭内测资格弹窗，再显示欢迎弹窗
+          // 设备有内测资格
           _closeQualificationDialog();
-          _showWelcomeDialog(user, qq, myDeviceID);
-        }
 
-        // 处理设备特定命令的operation和message（覆盖公共命令）
-        final operation = deviceCommand['operation']?.toString() ?? '';
-        final message = deviceCommand['message']?.toString();
+          final user = deviceCommand['user']?.toString() ?? '';
+          final qq = deviceCommand['qq']?.toString() ?? '';
 
-        if (operation == 'exit') {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            exit(0);
-          });
-          return;
-        }
+          if (user.isNotEmpty || qq.isNotEmpty) {
+            _showWelcomeDialog(user, qq, myDeviceID);
+          } else {
+            _showBasicWelcomeDialog(myDeviceID);
+          }
 
-        if (message != null && message.isNotEmpty) {
-          if (mounted) {
-            setState(() {
-              _commandMessage = message;
+          // 处理设备特定命令的操作
+          final operation = deviceCommand['operation']?.toString() ?? '';
+          if (operation == 'exit') {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              exit(0);
             });
+            return;
+          }
+
+          // 处理设备特定命令的消息
+          final message = deviceCommand['message']?.toString();
+          if (message != null && message.isNotEmpty) {
+            if (mounted) {
+              setState(() {
+                _commandMessage = message;
+              });
+            }
           }
         }
-      }
-
-      // 如果既没有找到设备命令，也没有找到isInternal为True的公共命令
-      if (!deviceFound && (publicCommand == null || !isTrue(publicCommand['isInternal']?.toString()))) {
+      } else {
+        // 既没有公共命令通过，也没有找到设备特定命令
         _showInternalTestQualificationDialog(myDeviceID);
       }
     } catch (e) {
@@ -404,15 +418,11 @@ class _EmuTravelState extends State<EmuTravel> {
                 ),
                 const SizedBox(width: 8),
                 // 重试按钮
-                StatefulBuilder(
-                  builder: (context, setState) {
-                    return OutlinedButton(
-                      onPressed: () async {
-                        await _checkRemoteCommands();
-                      },
-                      child: const Text('重试'),
-                    );
+                OutlinedButton(
+                  onPressed: () async {
+                    await _checkRemoteCommands();
                   },
+                  child: const Text('重试'),
                 ),
                 // 退出按钮
                 ElevatedButton(
@@ -446,7 +456,7 @@ class _EmuTravelState extends State<EmuTravel> {
         barrierDismissible: false,
         builder: (BuildContext context) {
           return PopScope(
-            canPop: false, // 禁用返回键
+            canPop: false,
             child: AlertDialog(
               title: const Text('欢迎参加内测!'),
               content: Column(
@@ -477,41 +487,72 @@ class _EmuTravelState extends State<EmuTravel> {
     }
   }
 
+  void _showBasicWelcomeDialog(String deviceID) {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return PopScope(
+            canPop: false,
+            child: AlertDialog(
+              title: const Text('欢迎使用EmuTravel!'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('设备ID: $deviceID'),
+                  const SizedBox(height: 8),
+                  const Text('感谢您使用EmuTravel！'),
+                  Text('${Vars.version} ${Vars.lastUpdate}'),
+                  const Text('请遵守使用协议！'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
   void _showCommandMessageDialog() {
     if (_commandMessage != null && navigatorKey.currentContext != null) {
       final message = _commandMessage!;
-      final myDeviceID = deviceID();
 
       showDialog(
         context: navigatorKey.currentContext!,
         barrierDismissible: false,
         builder: (BuildContext context) {
-          return FutureBuilder<String>(
-            future: myDeviceID,
-            builder: (context, snapshot) {
-              return PopScope(
-                canPop: false, // 禁用返回键
-                child: AlertDialog(
-                  title: const Text('系统消息'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      Text(message),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('确定'),
-                    ),
-                  ],
+          return PopScope(
+            canPop: false,
+            child: AlertDialog(
+              title: const Text('系统消息'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(message),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('确定'),
                 ),
-              );
-            },
+              ],
+            ),
           );
         },
       );
@@ -535,6 +576,16 @@ class _EmuTravelState extends State<EmuTravel> {
     return FutureBuilder<String>(
       future: deviceID(),
       builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
+
         final watermarkText = '${snapshot.data} ${Vars.build}';
 
         return ChangeNotifierProvider(
