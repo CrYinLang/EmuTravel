@@ -17,9 +17,9 @@ import 'dart:io';
 bool _isDarkMode = true;
 
 class Vars {
-  static const String lastUpdate = '26-02-11-14-40';
-  static const String version = '1.1.1.1';
-  static const String build = '1111';
+  static const String lastUpdate = '26-02-12-01-40';
+  static const String version = '1.1.1.2';
+  static const String build = '1112';
   static const String urlServer =
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
   static const String commandServer =
