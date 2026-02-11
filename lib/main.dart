@@ -20,16 +20,12 @@ Future<String> deviceID() async {
   final prefs = await SharedPreferences.getInstance();
   String? storedDeviceID = prefs.getString('deviceID');
 
-  // 如果 SharedPreferences 中有值，直接返回
   if (storedDeviceID != null && storedDeviceID.isNotEmpty) {
     return storedDeviceID;
   }
 
-  // 如果都读取不到，生成新的设备ID
   String newDeviceID = _generateDigitID();
-
   await prefs.setString('deviceID', newDeviceID);
-
   return newDeviceID;
 }
 
@@ -53,7 +49,7 @@ class Vars {
 
   static const Map<String, String> normalHeaders = {
     'User-Agent':
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
     'Accept': 'application/json',
     'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
   };
@@ -73,14 +69,19 @@ class Vars {
     return null;
   }
 
-  static Future<List<dynamic>?> fetchCommands() async {
+  static Future<Map<String, dynamic>?> fetchCommand() async {
     try {
       final response = await http
           .get(Uri.parse(commandServer), headers: normalHeaders)
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final data = json.decode(response.body);
+        if (data is List && data.isNotEmpty) {
+          return data[0] as Map<String, dynamic>;
+        } else if (data is Map<String, dynamic>) {
+          return data;
+        }
       }
     } catch (e) {
       debugPrint('获取命令失败: $e');
@@ -146,70 +147,21 @@ class _EmuTravelState extends State<EmuTravel> {
 
   Future<void> _initializeApp() async {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkRemoteCommands();
+      _checkRemoteCommand();
     });
   }
 
-  Future<void> _checkRemoteCommands() async {
-    final commands = await Vars.fetchCommands();
-    final myDeviceID = await deviceID();
+  Future<void> _checkRemoteCommand() async {
+    try {
+      final command = await Vars.fetchCommand();
 
-    if (commands == null) {
-      debugPrint('未获取到远程命令');
-      return;
-    }
-
-    // 查找公共命令和设备特定命令
-    Map<String, dynamic>? publicCommand;
-    Map<String, dynamic>? deviceCommand;
-
-    for (var command in commands) {
-      if (command is Map<String, dynamic>) {
-        final id = command['id']?.toString();
-
-        if (id == 'Public') {
-          publicCommand = command;
-        } else if (id == myDeviceID) {
-          deviceCommand = command;
-        }
-      }
-    }
-
-    // 处理公共命令
-    if (publicCommand != null) {
-      // 处理公共命令的消息
-      final publicMessage = publicCommand['message']?.toString();
-      if (publicMessage != null && publicMessage.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _commandMessage = publicMessage;
-          });
-        }
-      }
-
-      // 处理公共命令的操作
-      final publicOperation = publicCommand['operation']?.toString() ?? '';
-      if (publicOperation == 'exit') {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          exit(0);
-        });
-        return;
-      }
-    }
-
-    // 处理设备特定命令
-    if (deviceCommand != null) {
-      // 处理设备特定命令的操作
-      final operation = deviceCommand['operation']?.toString() ?? '';
-      if (operation == 'exit') {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          exit(0);
-        });
+      if (command == null) {
+        debugPrint('未获取到远程命令');
         return;
       }
 
-      // 处理设备特定命令的消息
-      final message = deviceCommand['message']?.toString();
+      // 处理消息
+      final message = command['message']?.toString();
       if (message != null && message.isNotEmpty) {
         if (mounted) {
           setState(() {
@@ -217,13 +169,36 @@ class _EmuTravelState extends State<EmuTravel> {
           });
         }
       }
+
+      // 处理操作
+      final operation = command['operation']?.toString() ?? '';
+      if (operation.isNotEmpty) {
+        _handleOperation(operation);
+      }
+    } catch (e) {
+      debugPrint('检查远程命令失败: $e');
+    }
+  }
+
+  void _handleOperation(String operation) {
+    switch (operation) {
+      case 'exit':
+        _showExitConfirmation();
+        break;
+    // 可以在这里添加更多操作
+    // case 'restart':
+    //   _restartApp();
+    //   break;
+    // case 'update':
+    //   _showUpdateDialog();
+    //   break;
+      default:
+        debugPrint('未知操作: $operation');
     }
   }
 
   void _showCommandMessageDialog() {
     if (_commandMessage != null && navigatorKey.currentContext != null) {
-      final message = _commandMessage!;
-
       showDialog(
         context: navigatorKey.currentContext!,
         barrierDismissible: false,
@@ -235,12 +210,16 @@ class _EmuTravelState extends State<EmuTravel> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [const SizedBox(height: 8), Text(message)],
+                children: [
+                  const SizedBox(height: 8),
+                  Text(_commandMessage!),
+                ],
               ),
               actions: [
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
+                    _commandMessage = null;
                   },
                   child: const Text('确定'),
                 ),
@@ -249,6 +228,35 @@ class _EmuTravelState extends State<EmuTravel> {
           );
         },
       );
+    }
+  }
+
+  void _showExitConfirmation() {
+    if (navigatorKey.currentContext != null) {
+      showDialog(
+        context: navigatorKey.currentContext!,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return PopScope(
+            canPop: false,
+            child: AlertDialog(
+              title: const Text('系统通知'),
+              content: const Text('收到远程退出指令，应用即将关闭'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    exit(0);
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } else {
+      exit(0);
     }
   }
 
@@ -294,15 +302,15 @@ class _EmuTravelState extends State<EmuTravel> {
             home: AnimatedTheme(
               data: _isDarkMode
                   ? ThemeData(
-                      primarySwatch: Colors.blue,
-                      useMaterial3: true,
-                      brightness: Brightness.dark,
-                    )
+                primarySwatch: Colors.blue,
+                useMaterial3: true,
+                brightness: Brightness.dark,
+              )
                   : ThemeData(
-                      primarySwatch: Colors.blue,
-                      useMaterial3: true,
-                      brightness: Brightness.light,
-                    ),
+                primarySwatch: Colors.blue,
+                useMaterial3: true,
+                brightness: Brightness.light,
+              ),
               duration: const Duration(milliseconds: 300),
               child: HomePage(themeManager: _themeManager),
             ),
