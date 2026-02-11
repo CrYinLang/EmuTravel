@@ -199,7 +199,7 @@
   },
   {
     "Public": "True",
-    "isInternal": "False",
+    "isInternal": "True",
     "operation": "",
     "message": "调试中暂时不可用!"
   }
