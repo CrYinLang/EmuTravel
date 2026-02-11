@@ -15,7 +15,6 @@ dependencies:
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2
   http: ^1.6.0
-  crypto: ^3.0.7
   clipboard: ^3.0.14
   android_intent_plus: ^6.0.0
   cupertino_icons: ^1.0.8

@@ -10,7 +10,6 @@ import 'settings.dart';
 import 'journey_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:crypto/crypto.dart';
 
 import 'dart:convert';
 import 'dart:math';
@@ -44,12 +43,8 @@ String _generateDigitID() {
   return buffer.toString();
 }
 
-String calculateMD5(String input) {
-  return md5.convert(utf8.encode(input)).toString();
-}
-
 class Vars {
-  static const String lastUpdate = '26-02-11-14-30'; // 更新时间
+  static const String lastUpdate = '26-02-11-13-50'; // 更新时间
   static const String version = '1.1.1.1'; // 版本号增加
   static const String build = '1111'; // 构建号增加
   static const String urlServer = 'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
