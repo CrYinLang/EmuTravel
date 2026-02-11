@@ -1,7 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
 
 import 'home_screen.dart';
 import 'about_page.dart';
@@ -44,24 +43,26 @@ String _generateDigitID() {
 }
 
 class Vars {
-  static const String lastUpdate = '26-02-11-13-50'; // 更新时间
-  static const String version = '1.1.1.1'; // 版本号增加
-  static const String build = '1111'; // 构建号增加
-  static const String urlServer = 'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
-  static const String commandServer = 'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
+  static const String lastUpdate = '26-02-11-13-50';
+  static const String version = '1.1.1.1';
+  static const String build = '1111';
+  static const String urlServer =
+      'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
+  static const String commandServer =
+      'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
 
   static const Map<String, String> normalHeaders = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+    'User-Agent':
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
     'Accept': 'application/json',
     'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
   };
 
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
     try {
-      final response = await http.get(
-        Uri.parse(urlServer),
-        headers: normalHeaders,
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse(urlServer), headers: normalHeaders)
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -74,10 +75,9 @@ class Vars {
 
   static Future<List<dynamic>?> fetchCommands() async {
     try {
-      final response = await http.get(
-        Uri.parse(commandServer),
-        headers: normalHeaders,
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse(commandServer), headers: normalHeaders)
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -117,87 +117,6 @@ class ThemeManager with ChangeNotifier {
   }
 }
 
-// 水印
-class WatermarkPainter extends CustomPainter {
-  final String deviceID;
-
-  const WatermarkPainter({required this.deviceID});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const alpha = 0.025;
-    final textStyle = TextStyle(
-      color: _isDarkMode
-          ? const Color.fromRGBO(255, 255, 255, 1).withAlpha((alpha * 255).toInt())
-          : const Color.fromRGBO(0, 0, 0, 1).withAlpha((alpha * 255).toInt()),
-      fontSize: 16,
-      fontWeight: FontWeight.w300,
-    );
-
-    final textSpan = TextSpan(text: deviceID, style: textStyle);
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    final textWidth = textPainter.width;
-    final textHeight = textPainter.height;
-
-    const horizontalSpacing = 00.0;
-    const verticalSpacing = 10.0;
-
-    final horizontalCount = (size.width / (textWidth + horizontalSpacing)).ceil() + 1;
-    final verticalCount = (size.height / (textHeight + verticalSpacing)).ceil() + 1;
-
-    for (int i = 0; i < horizontalCount; i++) {
-      for (int j = 0; j < verticalCount; j++) {
-        final x = i * (textWidth + horizontalSpacing) - textWidth / 2;
-        final y = j * (textHeight + verticalSpacing) - textHeight / 2;
-
-        canvas.save();
-        canvas.translate(x, y);
-        canvas.rotate(-30 * pi / 180);
-        textPainter.paint(canvas, Offset.zero);
-        canvas.restore();
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class WatermarkWidget extends StatelessWidget {
-  final Widget child;
-  final String deviceID;
-
-  const WatermarkWidget({
-    super.key,
-    required this.child,
-    required this.deviceID,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      textDirection: TextDirection.ltr,
-      children: [
-        child,
-        IgnorePointer(
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            child: CustomPaint(
-              painter: WatermarkPainter(deviceID: deviceID),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class EmuTravel extends StatefulWidget {
   const EmuTravel({super.key});
 
@@ -231,291 +150,73 @@ class _EmuTravelState extends State<EmuTravel> {
     });
   }
 
-  bool _isTrue(String? value) {
-    if (value == null) return false;
-    final normalizedValue = value.trim().toLowerCase();
-    final trueValues = {'true', 'y', '1'};
-    return trueValues.contains(normalizedValue);
-  }
-
   Future<void> _checkRemoteCommands() async {
-    try {
-      final commands = await Vars.fetchCommands();
-      final myDeviceID = await deviceID();
+    final commands = await Vars.fetchCommands();
+    final myDeviceID = await deviceID();
 
-      if (commands == null) {
-        debugPrint('未获取到远程命令');
+    if (commands == null) {
+      debugPrint('未获取到远程命令');
+      return;
+    }
+
+    // 查找公共命令和设备特定命令
+    Map<String, dynamic>? publicCommand;
+    Map<String, dynamic>? deviceCommand;
+
+    for (var command in commands) {
+      if (command is Map<String, dynamic>) {
+        final id = command['id']?.toString();
+
+        if (id == 'Public') {
+          publicCommand = command;
+        } else if (id == myDeviceID) {
+          deviceCommand = command;
+        }
+      }
+    }
+
+    // 处理公共命令
+    if (publicCommand != null) {
+      // 处理公共命令的消息
+      final publicMessage = publicCommand['message']?.toString();
+      if (publicMessage != null && publicMessage.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _commandMessage = publicMessage;
+          });
+        }
+      }
+
+      // 处理公共命令的操作
+      final publicOperation = publicCommand['operation']?.toString() ?? '';
+      if (publicOperation == 'exit') {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          exit(0);
+        });
+        return;
+      }
+    }
+
+    // 处理设备特定命令
+    if (deviceCommand != null) {
+      // 处理设备特定命令的操作
+      final operation = deviceCommand['operation']?.toString() ?? '';
+      if (operation == 'exit') {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          exit(0);
+        });
         return;
       }
 
-      // 查找公共命令和设备特定命令
-      Map<String, dynamic>? publicCommand;
-      Map<String, dynamic>? deviceCommand;
-
-      for (var command in commands) {
-        if (command is Map<String, dynamic>) {
-          final id = command['id']?.toString();
-
-          if (id == 'Public') {
-            publicCommand = command;
-          } else if (id == myDeviceID) {
-            deviceCommand = command;
-          }
-        }
-      }
-
-      // 处理公共命令
-      if (publicCommand != null && _isTrue(publicCommand['isInternal']?.toString())) {
-        // 公共命令通过，所有用户都有内测资格
-        _closeQualificationDialog();
-
-        // 处理公共命令的消息
-        final publicMessage = publicCommand['message']?.toString();
-        if (publicMessage != null && publicMessage.isNotEmpty) {
-          if (mounted) {
-            setState(() {
-              _commandMessage = publicMessage;
-            });
-          }
-        }
-
-        // 处理公共命令的操作
-        final publicOperation = publicCommand['operation']?.toString() ?? '';
-        if (publicOperation == 'exit') {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            exit(0);
+      // 处理设备特定命令的消息
+      final message = deviceCommand['message']?.toString();
+      if (message != null && message.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _commandMessage = message;
           });
-          return;
         }
-
-        // 显示公共命令的欢迎弹窗（如果有用户信息的话）
-        final publicUser = publicCommand['user']?.toString() ?? '';
-        final publicQQ = publicCommand['qq']?.toString() ?? '';
-        if (publicUser.isNotEmpty || publicQQ.isNotEmpty) {
-          _showWelcomeDialog(publicUser, publicQQ, myDeviceID);
-        } else {
-          // 只显示基础欢迎弹窗
-          _showBasicWelcomeDialog(myDeviceID);
-        }
-
-        return; // 公共命令处理完毕，不再检查设备特定命令
       }
-
-      // 如果没有公共命令或公共命令的isInternal不为True，则检查设备特定命令
-      if (deviceCommand != null) {
-        final isInternal = _isTrue(deviceCommand['isInternal']?.toString());
-
-        if (!isInternal) {
-          // 设备没有内测资格
-          _showInternalTestQualificationDialog(myDeviceID);
-          return;
-        } else {
-          // 设备有内测资格
-          _closeQualificationDialog();
-
-          final user = deviceCommand['user']?.toString() ?? '';
-          final qq = deviceCommand['qq']?.toString() ?? '';
-
-          if (user.isNotEmpty || qq.isNotEmpty) {
-            _showWelcomeDialog(user, qq, myDeviceID);
-          } else {
-            _showBasicWelcomeDialog(myDeviceID);
-          }
-
-          // 处理设备特定命令的操作
-          final operation = deviceCommand['operation']?.toString() ?? '';
-          if (operation == 'exit') {
-            Future.delayed(const Duration(milliseconds: 500), () {
-              exit(0);
-            });
-            return;
-          }
-
-          // 处理设备特定命令的消息
-          final message = deviceCommand['message']?.toString();
-          if (message != null && message.isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _commandMessage = message;
-              });
-            }
-          }
-        }
-      } else {
-        // 既没有公共命令通过，也没有找到设备特定命令
-        _showInternalTestQualificationDialog(myDeviceID);
-      }
-    } catch (e) {
-      debugPrint('检查远程命令失败: $e');
-    }
-  }
-
-  void _closeQualificationDialog() {
-    final context = navigatorKey.currentContext;
-    if (context != null) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    }
-  }
-
-  void _showInternalTestQualificationDialog(String deviceID) {
-    _closeQualificationDialog();
-    final context = navigatorKey.currentContext;
-    if (context != null) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.warning_amber, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Text('内测资格缺失!'),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '你的设备ID: $deviceID',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '您并未获取内测资格，无法使用本应用',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                // 复制ID按钮
-                TextButton.icon(
-                  onPressed: () {
-                    _copyToClipboard(deviceID);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('设备ID已复制到剪贴板'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.content_copy, size: 16),
-                  label: const Text('复制ID'),
-                ),
-                const SizedBox(width: 8),
-                // 重试按钮
-                OutlinedButton(
-                  onPressed: () async {
-                    await _checkRemoteCommands();
-                  },
-                  child: const Text('重试'),
-                ),
-                // 退出按钮
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    exit(0);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('退出'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
-  }
-
-  void _copyToClipboard(String text) async {
-    await Clipboard.setData(ClipboardData(text: text));
-  }
-
-  void _showWelcomeDialog(String user, String qq, String deviceID) {
-    final context = navigatorKey.currentContext;
-    if (context != null) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: const Text('欢迎参加内测!'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (user.isNotEmpty) Text('用户名: $user'),
-                  if (qq.isNotEmpty) Text('QQ: $qq'),
-                  Text('设备ID: $deviceID'),
-                  const SizedBox(height: 8),
-                  const Text('感谢您参与EmuTravel内测！'),
-                  Text('${Vars.version} ${Vars.lastUpdate}'),
-                  const Text('禁止外传!'),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('确定'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
-  }
-
-  void _showBasicWelcomeDialog(String deviceID) {
-    final context = navigatorKey.currentContext;
-    if (context != null) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: const Text('欢迎使用EmuTravel!'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('设备ID: $deviceID'),
-                  const SizedBox(height: 8),
-                  const Text('感谢您使用EmuTravel！'),
-                  Text('${Vars.version} ${Vars.lastUpdate}'),
-                  const Text('请遵守使用协议！'),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('确定'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
     }
   }
 
@@ -534,10 +235,7 @@ class _EmuTravelState extends State<EmuTravel> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  Text(message),
-                ],
+                children: [const SizedBox(height: 8), Text(message)],
               ),
               actions: [
                 TextButton(
@@ -573,15 +271,9 @@ class _EmuTravelState extends State<EmuTravel> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
           );
         }
-
-        final watermarkText = '${snapshot.data} ${Vars.build}';
 
         return ChangeNotifierProvider(
           create: (_) => JourneyProvider(),
@@ -602,27 +294,18 @@ class _EmuTravelState extends State<EmuTravel> {
             home: AnimatedTheme(
               data: _isDarkMode
                   ? ThemeData(
-                primarySwatch: Colors.blue,
-                useMaterial3: true,
-                brightness: Brightness.dark,
-              )
+                      primarySwatch: Colors.blue,
+                      useMaterial3: true,
+                      brightness: Brightness.dark,
+                    )
                   : ThemeData(
-                primarySwatch: Colors.blue,
-                useMaterial3: true,
-                brightness: Brightness.light,
-              ),
+                      primarySwatch: Colors.blue,
+                      useMaterial3: true,
+                      brightness: Brightness.light,
+                    ),
               duration: const Duration(milliseconds: 300),
-              child: WatermarkWidget(
-                deviceID: watermarkText,
-                child: HomePage(themeManager: _themeManager),
-              ),
+              child: HomePage(themeManager: _themeManager),
             ),
-            builder: (context, child) {
-              return WatermarkWidget(
-                deviceID: watermarkText,
-                child: child!,
-              );
-            },
           ),
         );
       },
@@ -658,10 +341,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_currentPageNickname),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text(_currentPageNickname), centerTitle: true),
       body: _getCurrentPage(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -671,18 +351,9 @@ class _HomePageState extends State<HomePage> {
           });
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '首页',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info),
-            label: '关于',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: '设置',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: '首页'),
+          BottomNavigationBarItem(icon: Icon(Icons.info), label: '关于'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: '设置'),
         ],
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Theme.of(context).colorScheme.primary,
