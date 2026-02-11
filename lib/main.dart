@@ -183,7 +183,10 @@ class _EmuTravelState extends State<EmuTravel> {
   void _handleOperation(String operation) {
     switch (operation) {
       case 'exit':
-        _showExitConfirmation();
+      // 直接退出应用，不显示通知
+        Future.delayed(const Duration(milliseconds: 100), () {
+          exit(0);
+        });
         break;
     // 可以在这里添加更多操作
     // case 'restart':
@@ -228,35 +231,6 @@ class _EmuTravelState extends State<EmuTravel> {
           );
         },
       );
-    }
-  }
-
-  void _showExitConfirmation() {
-    if (navigatorKey.currentContext != null) {
-      showDialog(
-        context: navigatorKey.currentContext!,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: const Text('系统通知'),
-              content: const Text('收到远程退出指令，应用即将关闭'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    exit(0);
-                  },
-                  child: const Text('确定'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    } else {
-      exit(0);
     }
   }
 
