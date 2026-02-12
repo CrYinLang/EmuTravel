@@ -94,43 +94,21 @@ class _LineMapContentState extends State<LineMapContent> {
 
   Future<void> _loadRouteMapData() async {
     try {
-      print('🚂 开始加载线路图数据...');
 
-      // 1. 从API获取完整车站数据
       final fullStationsFromApi = await _fetchStationsFromApi(widget.journey.trainCode)
           .timeout(const Duration(seconds: 10));
 
-      print('📊 完整API数据获取成功，共${fullStationsFromApi.length}个站点');
-      _debugPrintStations('完整API站点', fullStationsFromApi);
-
-      // 2. 过滤API数据，只保留journey.stations中存在的车站
       final filteredStations = _filterApiStations(fullStationsFromApi, widget.journey.stations);
 
-      print('🎯 过滤后站点：${filteredStations.length}个');
-      _debugPrintStations('过滤站点', filteredStations);
-
-      // 3. 为完整路线和过滤站点分别匹配坐标
-      print('🗺️ 开始匹配完整路线坐标...');
       final fullRouteWithLocation = await _matchStationsWithLocalData(fullStationsFromApi);
 
-      print('📍 开始匹配过滤站点坐标...');
       final filteredWithLocation = await _matchStationsWithLocalData(filteredStations);
 
-      // 调试坐标信息
-      _debugPrintCoordinateInfo('完整路线坐标', fullRouteWithLocation);
-      _debugPrintCoordinateInfo('过滤站点坐标', filteredWithLocation);
-
-      // 4. 使用完整路线的坐标范围来计算所有站点的相对位置
-      print('📐 计算相对位置...');
       final positionedFullRoute = _calculateRelativePositions(fullRouteWithLocation);
       final positionedFiltered = _calculatePositionsUsingFullRouteRange(
           filteredWithLocation,
           fullRouteWithLocation
       );
-
-      // 调试相对位置
-      _debugPrintRelativePositions('完整路线相对位置', positionedFullRoute);
-      _debugPrintRelativePositions('过滤站点相对位置', positionedFiltered);
 
       setState(() {
         _fullRouteStations = positionedFullRoute;
@@ -138,12 +116,7 @@ class _LineMapContentState extends State<LineMapContent> {
         _isLoading = false;
       });
 
-      print('✅ 线路图加载完成');
-      print('完整路线站点数: ${_fullRouteStations.length}');
-      print('过滤站点数: ${_filteredStations.length}');
-
     } catch (e) {
-      print('❌ 线路图加载失败: $e');
       setState(() {
         _errorMessage = '加载失败: $e';
         _isLoading = false;
@@ -158,7 +131,6 @@ class _LineMapContentState extends State<LineMapContent> {
     final validFullStations = fullRouteStations.where((s) => s['hasLocation'] == true).toList();
 
     if (validFullStations.isEmpty) {
-      print('⚠️ 完整路线无有效坐标，使用均匀分布');
       return _calculateEvenPositions(targetStations);
     }
 
@@ -177,8 +149,6 @@ class _LineMapContentState extends State<LineMapContent> {
       if (lat < minLat) minLat = lat;
       if (lat > maxLat) maxLat = lat;
     }
-
-    print('🗺️ 完整路线坐标范围: 经度[$minLng~$maxLng] 纬度[$minLat~$maxLat]');
 
     final lngRange = maxLng - minLng;
     final latRange = maxLat - minLat;
@@ -213,8 +183,6 @@ class _LineMapContentState extends State<LineMapContent> {
     final finalLngRange = finalMaxLng - finalMinLng;
     final finalLatRange = finalMaxLat - finalMinLat;
 
-    print('📏 计算后范围: 经度[$finalMinLng~$finalMaxLng] 纬度[$finalMinLat~$finalMaxLat]');
-
     final List<Map<String, dynamic>> positionedStations = [];
     for (int i = 0; i < targetStations.length; i++) {
       final station = targetStations[i];
@@ -235,12 +203,10 @@ class _LineMapContentState extends State<LineMapContent> {
         x = x.clamp(0.0, 1.0);
         y = y.clamp(0.0, 1.0);
 
-        print('📍 ${station['name']} - 原始坐标($lng,$lat) -> 相对坐标(${x.toStringAsFixed(3)},${y.toStringAsFixed(3)})');
       } else {
         // 对于无坐标的站点，使用线性插值
         x = 0.5;
         y = i / (targetStations.length - 1);
-        print('⚠️ ${station['name']} - 无坐标，使用默认位置(${x.toStringAsFixed(3)},${y.toStringAsFixed(3)})');
       }
 
       positionedStations.add({
@@ -254,53 +220,6 @@ class _LineMapContentState extends State<LineMapContent> {
     return positionedStations;
   }
 
-
-
-  // 调试方法：打印站点信息
-  void _debugPrintStations(String title, List<Map<String, dynamic>> stations) {
-    print('--- $title ---');
-    for (int i = 0; i < stations.length; i++) {
-      final station = stations[i];
-      final name = station['stationName'] ?? station['name'] ?? '未知';
-      final hasLoc = station['hasLocation'] ?? false;
-      print('$i. $name - 有坐标: $hasLoc');
-    }
-    print('----------------');
-  }
-
-  // 调试方法：打印坐标信息
-  void _debugPrintCoordinateInfo(String title, List<Map<String, dynamic>> stations) {
-    print('--- $title 坐标信息 ---');
-    int validCount = 0;
-    for (int i = 0; i < stations.length; i++) {
-      final station = stations[i];
-      final name = station['name'] ?? '未知';
-      final hasLoc = station['hasLocation'] ?? false;
-      if (hasLoc) {
-        validCount++;
-        final lng = station['longitude'] ?? 0;
-        final lat = station['latitude'] ?? 0;
-        print('$i. $name - 经度: $lng, 纬度: $lat');
-      }
-    }
-    print('有效坐标站点: $validCount/${stations.length}');
-    print('----------------------');
-  }
-
-  // 调试方法：打印相对位置
-  void _debugPrintRelativePositions(String title, List<Map<String, dynamic>> stations) {
-    print('--- $title 相对位置 ---');
-    for (int i = 0; i < stations.length; i++) {
-      final station = stations[i];
-      final name = station['name'] ?? '未知';
-      final x = station['relativeX'] ?? 0;
-      final y = station['relativeY'] ?? 0;
-      final hasLoc = station['hasLocation'] ?? false;
-      print('$i. $name - X: ${x.toStringAsFixed(3)}, Y: ${y.toStringAsFixed(3)} - 有坐标: $hasLoc');
-    }
-    print('----------------------');
-  }
-
   // 过滤API数据，只保留journey.stations中存在的车站
   List<Map<String, dynamic>> _filterApiStations(
       List<Map<String, dynamic>> apiStations,
@@ -311,16 +230,10 @@ class _LineMapContentState extends State<LineMapContent> {
       return station.stationName.replaceAll('站', '').trim();
     }).toList();
 
-    print('🎯 开始过滤API站点，目标站点: $journeyStationNames');
-
     // 过滤API数据
     final filtered = apiStations.where((apiStation) {
       final apiStationName = (apiStation['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
       final isInJourney = journeyStationNames.contains(apiStationName);
-
-      if (isInJourney) {
-        print('✅ 匹配到站点: $apiStationName');
-      }
 
       return isInJourney;
     }).toList();
@@ -336,7 +249,6 @@ class _LineMapContentState extends State<LineMapContent> {
       return aIndex.compareTo(bIndex);
     });
 
-    print('🎯 过滤完成，共找到${filtered.length}个匹配站点');
     return filtered;
   }
 
