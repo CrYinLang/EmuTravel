@@ -74,8 +74,8 @@ class LineMapContent extends StatefulWidget {
 }
 
 class _LineMapContentState extends State<LineMapContent> {
-  List<Map<String, dynamic>> _filteredStations = []; // 过滤后的站点（用于显示标签）
-  List<Map<String, dynamic>> _fullRouteStations = []; // 完整路线站点（用于绘制连线）
+  List<Map<String, dynamic>> _filteredStations = [];
+  List<Map<String, dynamic>> _fullRouteStations = [];
   bool _isLoading = true;
   String _errorMessage = '';
   int? _selectedStationIndex;
@@ -632,22 +632,10 @@ class _LineMapContentState extends State<LineMapContent> {
                             size: squareSize,
                             painter: _FullRouteLinePainter(_fullRouteStations),
                           ),
-
-                          // 绘制过滤站点连线（高亮）
-                          CustomPaint(
-                            size: squareSize,
-                            painter: _FilteredRouteLinePainter(
-                              _filteredStations,
-                            ),
-                          ),
-
-                          // 过滤站点标记点
                           ..._buildStationMarkers(
                             squareSize.width,
                             squareSize.height,
                           ),
-
-                          // 过滤站点标签
                           ..._buildStationLabels(
                             squareSize.width,
                             squareSize.height,
@@ -871,7 +859,7 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 }
 
-// 完整路线连线绘制器（背景灰色线条）
+// 完整路线连线绘制器（蓝色线条）
 class _FullRouteLinePainter extends CustomPainter {
   final List<Map<String, dynamic>> stations;
 
@@ -885,52 +873,8 @@ class _FullRouteLinePainter extends CustomPainter {
     if (validStations.length < 2) return;
 
     final paint = Paint()
-      ..color = Colors
-          .grey
-          .shade300 // 灰色背景线条
+      ..color = Colors.blue.shade600 // 修改为蓝色线条
       ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path();
-
-    final firstStation = validStations.first;
-    final startX = (firstStation['relativeX'] as double) * size.width;
-    final startY = (firstStation['relativeY'] as double) * size.height;
-    path.moveTo(startX, startY);
-
-    for (int i = 1; i < validStations.length; i++) {
-      final station = validStations[i];
-      final x = (station['relativeX'] as double) * size.width;
-      final y = (station['relativeY'] as double) * size.height;
-      path.lineTo(x, y);
-    }
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// 过滤路线连线绘制器（高亮蓝色线条）
-class _FilteredRouteLinePainter extends CustomPainter {
-  final List<Map<String, dynamic>> stations;
-
-  _FilteredRouteLinePainter(this.stations);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final validStations = stations
-        .where((s) => s['hasLocation'] == true)
-        .toList();
-    if (validStations.length < 2) return;
-
-    final paint = Paint()
-      ..color = Colors
-          .blue
-          .shade600 // 高亮蓝色线条
-      ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 

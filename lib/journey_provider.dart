@@ -76,11 +76,37 @@ class JourneyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 根据日期排序
-  void sortByDate() {
-    _journeys.sort((a, b) => a.travelDate.compareTo(b.travelDate));
+  void sortByDateTime() {
+    _journeys.sort((a, b) {
+      // 1. 创建完整的日期时间对象进行比较
+      final DateTime dateTimeA = _combineDateAndTime(a.travelDate, a.departureTime);
+      final DateTime dateTimeB = _combineDateAndTime(b.travelDate, b.departureTime);
+
+      // 2. 比较完整的日期时间
+      return dateTimeA.compareTo(dateTimeB);
+    });
+
     _saveJourneys();
     notifyListeners();
+  }
+
+  DateTime _combineDateAndTime(DateTime date, String timeStr) {
+    final parts = timeStr.split(':');
+    if (parts.length == 2) {
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+
+      return DateTime(
+          date.year,
+          date.month,
+          date.day,
+          hour,
+          minute
+      );
+    }
+
+    // 如果解析失败，返回原始日期
+    return date;
   }
 
   // 获取特定日期的行程

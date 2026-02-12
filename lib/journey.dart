@@ -8,6 +8,7 @@ import 'package:android_intent_plus/android_intent.dart';
 import 'package:provider/provider.dart';
 
 import 'journey_provider.dart';
+import 'linemap.dart';
 import 'journey_model.dart';
 import 'tool.dart';
 import 'home_screen.dart';
@@ -94,7 +95,8 @@ class _AddJourneyPageState extends State<AddJourneyPage>
   }
 
   String _getStationName(String telecode) {
-    return _stationNameMap[telecode.replaceAll(' ', '')] ?? telecode;
+    final name = _stationNameMap[telecode.replaceAll(' ', '')] ?? telecode;
+    return name.contains(RegExp(r'[a-zA-Z]')) ? '始发站  (环线)' : name;
   }
 
   String _cleanStationName(String name) {
@@ -204,8 +206,6 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     try {
       final url =
           'https://search.12306.cn/search/v1/train/search?keyword=$trainNumber&date=$_formattedDate';
-      // final url =
-      //     'http://10.166.135.96:8888/code';
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -288,8 +288,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
           if (ticketResultData != null &&
               ticketResultData.containsKey('result')) {
             final results = ticketResultData['result'] as List<dynamic>?;
-            final stationMap =
-                ticketResultData['map'] as Map<String, dynamic>? ?? {};
+            final stationMap =ticketResultData['map'] as Map<String, dynamic>? ?? {};
 
             // 将价格数据转换为便于查询的 Map
             final priceMap = _buildPriceMap(priceList);
@@ -455,8 +454,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
   }
 
   // 添加解析车次字符串的方法
-  Map<String, dynamic>? _parseTrainString(String trainStr,
-      Map<String, dynamic> stationMap,) {
+  Map<String, dynamic>? _parseTrainString(String trainStr,Map<String, dynamic> stationMap,) {
     try {
       // 多重解码处理
       String decodedStr = trainStr;
@@ -578,9 +576,6 @@ class _AddJourneyPageState extends State<AddJourneyPage>
   }
 
   Future<List<dynamic>> _fetchStopInfo(String trainNumber) async {
-    // final url = Uri.parse(
-    //   'http://10.166.135.96:8888/stop',
-    // );
     final url = Uri.parse(
       'https://m.ctrip.com/restapi/soa2/14674/json/GetTrainStopTimeInfo',
     );
@@ -1285,331 +1280,6 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     );
   }
 
-  Widget _buildSeatList(Map<String, dynamic> item) {
-    // 座位映射
-    final Map<String, String> seatMapping = {
-      'swz_num': '商务座',
-      'zy_num': '一等座',
-      'ze_num': '二等座',
-      'gr_num': '高级软卧',
-      'rw_num': '软卧',
-      'yw_num': '硬卧',
-      'rz_num': '软座',
-      'yz_num': '硬座',
-      'wz_num': '无座',
-      'tz_num': '特等座',
-      'qt_num': '其他',
-      'gg_num': '优选一等座',
-      'srrb_num': '动卧',
-      'yb_num': '预留',
-    };
-
-    // 价格映射
-    final Map<String, String> priceMapping = {
-      'swz_num': item['swz_price']?.toString() ??
-          item['tz_price']?.toString() ?? '--',
-      'zy_num': item['zy_price']?.toString() ?? '--',
-      'ze_num': item['ze_price']?.toString() ?? '--',
-      'gr_num': item['gr_price']?.toString() ?? '--',
-      'rw_num': item['rw_price']?.toString() ??
-          item['srrb_price']?.toString() ?? '--',
-      'yw_num': item['yw_price']?.toString() ?? '--',
-      'rz_num': item['rz_price']?.toString() ?? '--',
-      'yz_num': item['yz_price']?.toString() ?? '--',
-      'wz_num': item['wz_price']?.toString() ?? item['ze_price']?.toString() ??
-          '--',
-      'tz_num': item['tz_price']?.toString() ?? item['swz_price']?.toString() ??
-          '--',
-      'qt_num': item['qt_price']?.toString() ?? '--',
-      'gg_num': item['gg_price']?.toString() ?? item['zy_price']?.toString() ??
-          '--',
-      'srrb_num': item['srrb_price']?.toString() ??
-          item['rw_price']?.toString() ?? '--',
-      'yb_num': item['yb_price']?.toString() ?? '--',
-    };
-
-    final Map<String, dynamic> seatInfo = item['座位信息'] ?? {};
-
-    // 座位类别配置
-    final List<Map<String, dynamic>> seatCategories = [
-      {
-        'name': '商务/特等座',
-        'seats': ['swz_num', 'tz_num', 'gg_num'],
-        'color': Colors.red,
-      },
-      {
-        'name': '一等/二等座',
-        'seats': ['zy_num', 'ze_num', 'wz_num'],
-        'color': Colors.blue,
-      },
-      {
-        'name': '卧铺',
-        'seats': ['gr_num', 'rw_num', 'yw_num', 'srrb_num'],
-        'color': Colors.orange,
-      },
-      {
-        'name': '坐席',
-        'seats': ['rz_num', 'yz_num'],
-        'color': Colors.green,
-      },
-      {
-        'name': '其他',
-        'seats': ['qt_num', 'yb_num'],
-        'color': Colors.grey,
-      },
-    ];
-
-    // 检查是否有任何可用的票
-    final bool hasAvailableTickets = _hasAvailableTickets(seatInfo);
-
-    // 检查是否有动卧
-    final bool hasMotorSleeper = priceMapping['srrb_num'] != null &&
-        priceMapping['srrb_num'] != '--' &&
-        priceMapping['srrb_num'] != '0';
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme
-            .of(context)
-            .dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题部分
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme
-                  .of(context)
-                  .colorScheme
-                  .primary
-                  .withAlpha(30),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event_seat,
-                  color: Theme
-                      .of(context)
-                      .colorScheme
-                      .primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '坐席信息    仅供参考',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Theme
-                        .of(context)
-                        .colorScheme
-                        .primary,
-                  ),
-                ),
-                if (!hasAvailableTickets) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      '无票',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // 座位信息内容
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: seatCategories.map((category) {
-                final categorySeats = category['seats'] as List<String>;
-                final categoryColor = category['color'] as Color;
-
-                // 过滤：只显示有价格的座位类型
-                final seatsWithPrice = categorySeats.where((seatCode) {
-                  final price = priceMapping[seatCode];
-                  return price != null && price != '--' && price != '0';
-                }).toList();
-
-                // 特殊处理：卧铺类别中，软卧和动卧不能同时存在
-                if (category['name'] == '卧铺') {
-                  final hasSoftSleeper = seatsWithPrice.contains('rw_num');
-                  final hasMotorSleeper = seatsWithPrice.contains('srrb_num');
-
-                  // 如果同时存在软卧和动卧，优先显示动卧，隐藏软卧
-                  if (hasSoftSleeper && hasMotorSleeper) {
-                    seatsWithPrice.remove('rw_num');
-                  }
-                }
-
-                // 如果该类别下所有座位都没有价格，则不显示整个类别
-                if (seatsWithPrice.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 类别标题
-                    Row(
-                      children: [
-                        Container(width: 4, height: 16, color: categoryColor),
-                        const SizedBox(width: 8),
-                        Text(
-                          category['name'] as String,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 座位列表 - 只显示有价格的座位，无票的用红色标识
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: seatsWithPrice.map((seatCode) {
-                        final seatName = seatMapping[seatCode] ?? seatCode;
-                        final seatValue = seatInfo[seatCode]?.toString() ??
-                            '无票';
-                        final seatPrice = priceMapping[seatCode] ?? '--';
-                        final isAvailable = _isSeatAvailable(
-                            seatInfo[seatCode]);
-
-                        // 清理座位值显示
-                        String displayValue = seatValue;
-                        if (!isAvailable) {
-                          displayValue = '无票';
-                        }
-
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: categoryColor.withAlpha(30),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: categoryColor.withAlpha(100),
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                seatName,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: categoryColor,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                displayValue,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isAvailable
-                                      ? categoryColor
-                                      : Colors.red[300],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '¥$seatPrice',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: categoryColor.withAlpha(150),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                );
-              })
-                  .where((categoryWidget) =>
-              categoryWidget is! SizedBox || categoryWidget.child != null)
-                  .toList(),
-            ),
-          ),
-
-          // 底部提示信息
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: Colors.orange.shade700,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    hasMotorSleeper
-                        ? '动卧或部分列车有折扣，请上12306查看'
-                        : '部分列车有折扣，请上12306查看',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool _hasAvailableTickets(Map<String, dynamic> seatInfo) {
-    return seatInfo.entries.any((entry) => _isSeatAvailable(entry.value));
-  }
-
-  bool _isSeatAvailable(dynamic value) {
-    return value != null &&
-        value != '无票' &&
-        value != '无' &&
-        value != '' &&
-        value != '--' &&
-        value != 'NULL' &&
-        value != '0';
-  }
-
   Widget _buildExpanded(int index, Map<String, dynamic> item, bool isStation) {
     final loading = isStation
         ? (_stationLoading[index] ?? false)
@@ -1959,46 +1629,390 @@ class _AddJourneyPageState extends State<AddJourneyPage>
 
           const SizedBox(height: 20),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: expired
-                  ? null
-                  : () => _handleSelect(index, item, isStation),
-              icon: Icon(
-                Icons.add,
-                color: expired ? Colors.grey.shade400 : Theme
-                    .of(context)
-                    .colorScheme
-                    .surface,
+// 使用 Row 布局放置两个按钮
+          Row(
+            children: [
+              // 添加车次按钮
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: expired
+                      ? null
+                      : () => _handleSelect(index, item, isStation),
+                  icon: Icon(
+                    Icons.add,
+                    color: expired
+                        ? Colors.grey.shade400
+                        : Theme.of(context).colorScheme.surface,
+                  ),
+                  label: Text(
+                    expired ? '车次已过期' : '添加此车次',
+                    style: TextStyle(
+                      color: expired
+                          ? Colors.grey.shade400
+                          : Theme.of(context).colorScheme.surface,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: expired
+                        ? Colors.grey.shade300
+                        : Theme.of(context).colorScheme.primary,
+                    foregroundColor: expired ? Colors.grey.shade400 : Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
-              label: Text(
-                expired ? '车次已过期' : '添加此车次',
-                style: TextStyle(
-                  color: expired ? Colors.grey.shade400 : Theme
+
+              const SizedBox(width: 12),
+
+              // 查看线路图按钮
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _openLineMap(item, isStation),
+                  icon: const Icon(Icons.map, size: 20),
+                  label: const Text('线路图'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeatList(Map<String, dynamic> item) {
+    // 座位映射
+    final Map<String, String> seatMapping = {
+      'swz_num': '商务座',
+      'zy_num': '一等座',
+      'ze_num': '二等座',
+      'gr_num': '高级软卧',
+      'rw_num': '软卧',
+      'yw_num': '硬卧',
+      'rz_num': '软座',
+      'yz_num': '硬座',
+      'wz_num': '无座',
+      'tz_num': '特等座',
+      'qt_num': '其他',
+      'gg_num': '优选一等座',
+      'srrb_num': '动卧',
+      'yb_num': '预留',
+    };
+
+    // 价格映射
+    final Map<String, String> priceMapping = {
+      'swz_num': item['swz_price']?.toString() ??
+          item['tz_price']?.toString() ?? '--',
+      'zy_num': item['zy_price']?.toString() ?? '--',
+      'ze_num': item['ze_price']?.toString() ?? '--',
+      'gr_num': item['gr_price']?.toString() ?? '--',
+      'rw_num': item['rw_price']?.toString() ??
+          item['srrb_price']?.toString() ?? '--',
+      'yw_num': item['yw_price']?.toString() ?? '--',
+      'rz_num': item['rz_price']?.toString() ?? '--',
+      'yz_num': item['yz_price']?.toString() ?? '--',
+      'wz_num': item['wz_price']?.toString() ?? item['ze_price']?.toString() ??
+          '--',
+      'tz_num': item['tz_price']?.toString() ?? item['swz_price']?.toString() ??
+          '--',
+      'qt_num': item['qt_price']?.toString() ?? '--',
+      'gg_num': item['gg_price']?.toString() ?? item['zy_price']?.toString() ??
+          '--',
+      'srrb_num': item['srrb_price']?.toString() ??
+          item['rw_price']?.toString() ?? '--',
+      'yb_num': item['yb_price']?.toString() ?? '--',
+    };
+
+    final Map<String, dynamic> seatInfo = item['座位信息'] ?? {};
+
+    // 座位类别配置
+    final List<Map<String, dynamic>> seatCategories = [
+      {
+        'name': '商务/特等座',
+        'seats': ['swz_num', 'tz_num', 'gg_num'],
+        'color': Colors.red,
+      },
+      {
+        'name': '一等/二等座',
+        'seats': ['zy_num', 'ze_num', 'wz_num'],
+        'color': Colors.blue,
+      },
+      {
+        'name': '卧铺',
+        'seats': ['gr_num', 'rw_num', 'yw_num', 'srrb_num'],
+        'color': Colors.orange,
+      },
+      {
+        'name': '坐席',
+        'seats': ['rz_num', 'yz_num'],
+        'color': Colors.green,
+      },
+      {
+        'name': '其他',
+        'seats': ['qt_num', 'yb_num'],
+        'color': Colors.grey,
+      },
+    ];
+
+    // 检查是否有任何可用的票
+    final bool hasAvailableTickets = _hasAvailableTickets(seatInfo);
+
+    // 检查是否有动卧
+    final bool hasMotorSleeper = priceMapping['srrb_num'] != null &&
+        priceMapping['srrb_num'] != '--' &&
+        priceMapping['srrb_num'] != '0';
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme
+            .of(context)
+            .dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题部分
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme
+                  .of(context)
+                  .colorScheme
+                  .primary
+                  .withAlpha(30),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.event_seat,
+                  color: Theme
                       .of(context)
                       .colorScheme
-                      .surface,
+                      .primary,
+                  size: 20,
                 ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: expired
-                    ? Colors.grey.shade300
-                    : Theme
-                    .of(context)
-                    .colorScheme
-                    .primary,
-                foregroundColor: expired ? Colors.grey.shade400 : Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(width: 8),
+                Text(
+                  '坐席信息    仅供参考',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme
+                        .of(context)
+                        .colorScheme
+                        .primary,
+                  ),
                 ),
+                if (!hasAvailableTickets) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '无票',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // 座位信息内容
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: seatCategories.map((category) {
+                final categorySeats = category['seats'] as List<String>;
+                final categoryColor = category['color'] as Color;
+
+                // 过滤：只显示有价格的座位类型
+                final seatsWithPrice = categorySeats.where((seatCode) {
+                  final price = priceMapping[seatCode];
+                  return price != null && price != '--' && price != '0';
+                }).toList();
+
+                // 特殊处理：卧铺类别中，软卧和动卧不能同时存在
+                if (category['name'] == '卧铺') {
+                  final hasSoftSleeper = seatsWithPrice.contains('rw_num');
+                  final hasMotorSleeper = seatsWithPrice.contains('srrb_num');
+
+                  // 如果同时存在软卧和动卧，优先显示动卧，隐藏软卧
+                  if (hasSoftSleeper && hasMotorSleeper) {
+                    seatsWithPrice.remove('rw_num');
+                  }
+                }
+
+                // 如果该类别下所有座位都没有价格，则不显示整个类别
+                if (seatsWithPrice.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 类别标题
+                    Row(
+                      children: [
+                        Container(width: 4, height: 16, color: categoryColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          category['name'] as String,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 座位列表 - 只显示有价格的座位，无票的用红色标识
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: seatsWithPrice.map((seatCode) {
+                        final seatName = seatMapping[seatCode] ?? seatCode;
+                        final seatValue = seatInfo[seatCode]?.toString() ??
+                            '无票';
+                        final seatPrice = priceMapping[seatCode] ?? '--';
+                        final isAvailable = _isSeatAvailable(
+                            seatInfo[seatCode]);
+
+                        // 清理座位值显示
+                        String displayValue = seatValue;
+                        if (!isAvailable) {
+                          displayValue = '无票';
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: categoryColor.withAlpha(30),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: categoryColor.withAlpha(100),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                seatName,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: categoryColor,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                displayValue,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isAvailable
+                                      ? categoryColor
+                                      : Colors.red[300],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '¥$seatPrice',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: categoryColor.withAlpha(150),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              })
+                  .where((categoryWidget) =>
+              categoryWidget is! SizedBox || categoryWidget.child != null)
+                  .toList(),
+            ),
+          ),
+
+          // 底部提示信息
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
               ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Colors.orange.shade700,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    hasMotorSleeper
+                        ? '动卧或部分列车有折扣，请上12306查看'
+                        : '部分列车有折扣，请上12306查看',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  bool _hasAvailableTickets(Map<String, dynamic> seatInfo) {
+    return seatInfo.entries.any((entry) => _isSeatAvailable(entry.value));
+  }
+
+  bool _isSeatAvailable(dynamic value) {
+    return value != null &&
+        value != '无票' &&
+        value != '无' &&
+        value != '' &&
+        value != '--' &&
+        value != 'NULL' &&
+        value != '0';
   }
 
   String _calcRunTime(String start, String end, String day) {
@@ -2183,6 +2197,43 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         ),
       ],
     );
+  }
+
+  void _openLineMap(Map<String, dynamic> item, bool isStation) {
+    try {
+      // 获取当前索引
+      final currentIndex = isStation
+          ? (_stationExpandedIndex ?? 0)
+          : (_expandedIndex ?? 0);
+
+      // 获取站点数据
+      final stopData = isStation
+          ? (_stationDetails[currentIndex] ?? [])
+          : (_trainDetails[currentIndex] ?? []);
+
+      if (stopData.isEmpty) {
+        _showSnack('暂无站点信息，无法显示线路图');
+        return;
+      }
+
+      // 使用现有的工厂方法创建 Journey 对象
+      final journey = Journey.fromMapWithStations(
+        trainInfo: item,
+        date: _selectedDate ?? DateTime.now(),
+        stationList: stopData,
+        isStation: isStation,
+        fromStation: isStation ? _fromName : null,
+        toStation: isStation ? _toName : null,
+      );
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => LineMapDialog(journey: journey),
+        ),
+      );
+    } catch (e) {
+      _showSnack('打开线路图失败: $e');
+    }
   }
 
   Widget _buildStopSection(int index, List<dynamic> stops, bool loading, bool isStation) {

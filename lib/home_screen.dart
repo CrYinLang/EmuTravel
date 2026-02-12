@@ -15,7 +15,6 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的行程'),
         actions: [
           Consumer<JourneyProvider>(
             builder: (context, provider, child) {
@@ -23,10 +22,11 @@ class HomeScreen extends StatelessWidget {
               return PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'sort') {
-                    provider.sortByDate();
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text('已按日期排序')));
+                    // 改为调用时间排序方法
+                    provider.sortByDateTime();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('已按出发时间排序'))
+                    );
                   } else if (value == 'clear') {
                     showDialog(
                       context: context,
