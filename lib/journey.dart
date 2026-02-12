@@ -88,7 +88,8 @@ class _AddJourneyPageState extends State<AddJourneyPage>
   }
 
   String _getStationName(String telecode) {
-    return _stationNameMap[telecode] ?? telecode;
+    String cleanTelecode = telecode.replaceAll(' ', '');
+    return _stationNameMap[cleanTelecode] ?? telecode;
   }
 
   @override
