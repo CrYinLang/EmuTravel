@@ -27,9 +27,7 @@ class LineMapDialog extends StatelessWidget {
         child: Column(
           children: [
             _buildRouteSummary(context, journey),
-            Expanded(
-              child: LineMapContent(journey: journey),
-            ),
+            Expanded(child: LineMapContent(journey: journey)),
           ],
         ),
       ),
@@ -54,10 +52,7 @@ class LineMapDialog extends StatelessWidget {
                   ),
                   Text(
                     '全程${journey.getTotalDuration()} • ${journey.stations.length}个站点',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -94,20 +89,29 @@ class _LineMapContentState extends State<LineMapContent> {
 
   Future<void> _loadRouteMapData() async {
     try {
+      final fullStationsFromApi = await _fetchStationsFromApi(
+        widget.journey.trainCode,
+      ).timeout(const Duration(seconds: 10));
 
-      final fullStationsFromApi = await _fetchStationsFromApi(widget.journey.trainCode)
-          .timeout(const Duration(seconds: 10));
+      final filteredStations = _filterApiStations(
+        fullStationsFromApi,
+        widget.journey.stations,
+      );
 
-      final filteredStations = _filterApiStations(fullStationsFromApi, widget.journey.stations);
+      final fullRouteWithLocation = await _matchStationsWithLocalData(
+        fullStationsFromApi,
+      );
 
-      final fullRouteWithLocation = await _matchStationsWithLocalData(fullStationsFromApi);
+      final filteredWithLocation = await _matchStationsWithLocalData(
+        filteredStations,
+      );
 
-      final filteredWithLocation = await _matchStationsWithLocalData(filteredStations);
-
-      final positionedFullRoute = _calculateRelativePositions(fullRouteWithLocation);
+      final positionedFullRoute = _calculateRelativePositions(
+        fullRouteWithLocation,
+      );
       final positionedFiltered = _calculatePositionsUsingFullRouteRange(
-          filteredWithLocation,
-          fullRouteWithLocation
+        filteredWithLocation,
+        fullRouteWithLocation,
       );
 
       setState(() {
@@ -115,7 +119,6 @@ class _LineMapContentState extends State<LineMapContent> {
         _filteredStations = positionedFiltered;
         _isLoading = false;
       });
-
     } catch (e) {
       setState(() {
         _errorMessage = '加载失败: $e';
@@ -124,11 +127,16 @@ class _LineMapContentState extends State<LineMapContent> {
     }
   }
 
-  List<Map<String, dynamic>> _calculatePositionsUsingFullRouteRange(List<Map<String, dynamic>> targetStations,List<Map<String, dynamic>> fullRouteStations) {
+  List<Map<String, dynamic>> _calculatePositionsUsingFullRouteRange(
+    List<Map<String, dynamic>> targetStations,
+    List<Map<String, dynamic>> fullRouteStations,
+  ) {
     if (targetStations.isEmpty) return [];
 
     // 使用完整路线的有效站点来计算坐标范围
-    final validFullStations = fullRouteStations.where((s) => s['hasLocation'] == true).toList();
+    final validFullStations = fullRouteStations
+        .where((s) => s['hasLocation'] == true)
+        .toList();
 
     if (validFullStations.isEmpty) {
       return _calculateEvenPositions(targetStations);
@@ -202,7 +210,6 @@ class _LineMapContentState extends State<LineMapContent> {
 
         x = x.clamp(0.0, 1.0);
         y = y.clamp(0.0, 1.0);
-
       } else {
         // 对于无坐标的站点，使用线性插值
         x = 0.5;
@@ -222,9 +229,9 @@ class _LineMapContentState extends State<LineMapContent> {
 
   // 过滤API数据，只保留journey.stations中存在的车站
   List<Map<String, dynamic>> _filterApiStations(
-      List<Map<String, dynamic>> apiStations,
-      List<StationDetail> journeyStations
-      ) {
+    List<Map<String, dynamic>> apiStations,
+    List<StationDetail> journeyStations,
+  ) {
     // 提取journey.stations中的车站名称（清理格式）
     final journeyStationNames = journeyStations.map((station) {
       return station.stationName.replaceAll('站', '').trim();
@@ -232,7 +239,9 @@ class _LineMapContentState extends State<LineMapContent> {
 
     // 过滤API数据
     final filtered = apiStations.where((apiStation) {
-      final apiStationName = (apiStation['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
+      final apiStationName =
+          (apiStation['stationName'] as String?)?.replaceAll('站', '').trim() ??
+          '';
       final isInJourney = journeyStationNames.contains(apiStationName);
 
       return isInJourney;
@@ -240,8 +249,10 @@ class _LineMapContentState extends State<LineMapContent> {
 
     // 确保车站顺序与journey.stations一致
     filtered.sort((a, b) {
-      final aName = (a['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
-      final bName = (b['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
+      final aName =
+          (a['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
+      final bName =
+          (b['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
 
       final aIndex = journeyStationNames.indexOf(aName);
       final bIndex = journeyStationNames.indexOf(bName);
@@ -253,14 +264,15 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   // 从API获取车站数据
-  Future<List<Map<String, dynamic>>> _fetchStationsFromApi(String trainNumber) async {
+  Future<List<Map<String, dynamic>>> _fetchStationsFromApi(
+    String trainNumber,
+  ) async {
     try {
-      final url = Uri.parse('https://rail.moefactory.com/api/trainDetails/queryTrainRoutes');
-
-      final response = await http.post(
-        url,
-        body: {"trainNumber": trainNumber},
+      final url = Uri.parse(
+        'https://rail.moefactory.com/api/trainDetails/queryTrainRoutes',
       );
+
+      final response = await http.post(url, body: {"trainNumber": trainNumber});
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -279,7 +291,9 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   // 从本地JSON匹配车站坐标
-  Future<List<Map<String, dynamic>>> _matchStationsWithLocalData(List<Map<String, dynamic>> apiStations) async {
+  Future<List<Map<String, dynamic>>> _matchStationsWithLocalData(
+    List<Map<String, dynamic>> apiStations,
+  ) async {
     try {
       final jsonString = await rootBundle.loadString('assets/stations.json');
       final List<dynamic> allStations = json.decode(jsonString);
@@ -292,14 +306,11 @@ class _LineMapContentState extends State<LineMapContent> {
 
         dynamic matched;
         try {
-          matched = allStations.firstWhere(
-                (station) {
-              final jsonName = station['name']?.toString() ?? '';
-              final cleanJsonName = jsonName.replaceAll('站', '').trim();
-              return cleanJsonName == cleanName;
-            },
-            orElse: () => null,
-          );
+          matched = allStations.firstWhere((station) {
+            final jsonName = station['name']?.toString() ?? '';
+            final cleanJsonName = jsonName.replaceAll('站', '').trim();
+            return cleanJsonName == cleanName;
+          }, orElse: () => null);
         } catch (e) {
           matched = null;
         }
@@ -352,24 +363,32 @@ class _LineMapContentState extends State<LineMapContent> {
       return matchedStations;
     } catch (e) {
       // 如果匹配失败，返回原始数据（无坐标）
-      return apiStations.map((station) => {
-        ...station,
-        'name': station['stationName'] ?? '未知车站',
-        'location': null,
-        'city': '',
-        'telecode': '',
-        'longitude': 0,
-        'latitude': 0,
-        'hasLocation': false,
-      }).toList();
+      return apiStations
+          .map(
+            (station) => {
+              ...station,
+              'name': station['stationName'] ?? '未知车站',
+              'location': null,
+              'city': '',
+              'telecode': '',
+              'longitude': 0,
+              'latitude': 0,
+              'hasLocation': false,
+            },
+          )
+          .toList();
     }
   }
 
   // 计算相对位置
-  List<Map<String, dynamic>> _calculateRelativePositions(List<Map<String, dynamic>> stations) {
+  List<Map<String, dynamic>> _calculateRelativePositions(
+    List<Map<String, dynamic>> stations,
+  ) {
     if (stations.isEmpty) return [];
 
-    final validStations = stations.where((s) => s['hasLocation'] == true).toList();
+    final validStations = stations
+        .where((s) => s['hasLocation'] == true)
+        .toList();
 
     if (validStations.isEmpty) {
       return _calculateEvenPositions(stations);
@@ -460,7 +479,9 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   // 均匀分布计算
-  List<Map<String, dynamic>> _calculateEvenPositions(List<Map<String, dynamic>> stations) {
+  List<Map<String, dynamic>> _calculateEvenPositions(
+    List<Map<String, dynamic>> stations,
+  ) {
     return stations.asMap().entries.map((entry) {
       final i = entry.key;
       final station = entry.value;
@@ -484,7 +505,11 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   // 自动管理标签显示
-  void _autoManageLabels(int clickedIndex, double containerWidth, double containerHeight) {
+  void _autoManageLabels(
+    int clickedIndex,
+    double containerWidth,
+    double containerHeight,
+  ) {
     setState(() {
       // 如果点击的是当前已选中的站点，则隐藏标签
       if (_selectedStationIndex == clickedIndex) {
@@ -500,7 +525,8 @@ class _LineMapContentState extends State<LineMapContent> {
 
         // 检查附近站点，如果距离过近也显示
         for (int i = 0; i < _filteredStations.length; i++) {
-          if (i != clickedIndex && _isTooClose(i, clickedIndex, containerWidth, containerHeight)) {
+          if (i != clickedIndex &&
+              _isTooClose(i, clickedIndex, containerWidth, containerHeight)) {
             _stationLabelsVisible[i] = true;
           }
         }
@@ -509,7 +535,12 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   // 检查两个站点是否距离过近
-  bool _isTooClose(int index1, int index2, double containerWidth, double containerHeight) {
+  bool _isTooClose(
+    int index1,
+    int index2,
+    double containerWidth,
+    double containerHeight,
+  ) {
     final station1 = _filteredStations[index1];
     final station2 = _filteredStations[index2];
 
@@ -605,14 +636,22 @@ class _LineMapContentState extends State<LineMapContent> {
                           // 绘制过滤站点连线（高亮）
                           CustomPaint(
                             size: squareSize,
-                            painter: _FilteredRouteLinePainter(_filteredStations),
+                            painter: _FilteredRouteLinePainter(
+                              _filteredStations,
+                            ),
                           ),
 
                           // 过滤站点标记点
-                          ..._buildStationMarkers(squareSize.width, squareSize.height),
+                          ..._buildStationMarkers(
+                            squareSize.width,
+                            squareSize.height,
+                          ),
 
                           // 过滤站点标签
-                          ..._buildStationLabels(squareSize.width, squareSize.height),
+                          ..._buildStationLabels(
+                            squareSize.width,
+                            squareSize.height,
+                          ),
                         ],
                       );
                     },
@@ -626,7 +665,10 @@ class _LineMapContentState extends State<LineMapContent> {
     );
   }
 
-  List<Widget> _buildStationMarkers(double containerWidth, double containerHeight) {
+  List<Widget> _buildStationMarkers(
+    double containerWidth,
+    double containerHeight,
+  ) {
     return _filteredStations.map((station) {
       final x = station['relativeX'] as double;
       final y = station['relativeY'] as double;
@@ -641,17 +683,15 @@ class _LineMapContentState extends State<LineMapContent> {
         top: pixelY - 8,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _autoManageLabels(index, containerWidth, containerHeight),
+          onTap: () =>
+              _autoManageLabels(index, containerWidth, containerHeight),
           child: Container(
             width: 16,
             height: 16,
             decoration: BoxDecoration(
               color: isViaStation ? Colors.blue : Colors.grey,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 2,
-              ),
+              border: Border.all(color: Colors.white, width: 2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withAlpha(77),
@@ -676,7 +716,10 @@ class _LineMapContentState extends State<LineMapContent> {
     }).toList();
   }
 
-  List<Widget> _buildStationLabels(double containerWidth, double containerHeight) {
+  List<Widget> _buildStationLabels(
+    double containerWidth,
+    double containerHeight,
+  ) {
     return _filteredStations.map((station) {
       final x = station['relativeX'] as double;
       final y = station['relativeY'] as double;
@@ -699,7 +742,11 @@ class _LineMapContentState extends State<LineMapContent> {
 
       // 智能计算标签位置
       final labelPosition = _calculateLabelPosition(
-          index, pixelX, pixelY, containerWidth, containerHeight
+        index,
+        pixelX,
+        pixelY,
+        containerWidth,
+        containerHeight,
       );
 
       return Positioned(
@@ -741,7 +788,11 @@ class _LineMapContentState extends State<LineMapContent> {
                     ),
                     if (!hasLocation) ...[
                       const SizedBox(width: 4),
-                      const Icon(Icons.warning_amber, size: 8, color: Colors.orange),
+                      const Icon(
+                        Icons.warning_amber,
+                        size: 8,
+                        color: Colors.orange,
+                      ),
                     ],
                   ],
                 ),
@@ -749,30 +800,21 @@ class _LineMapContentState extends State<LineMapContent> {
                   const SizedBox(height: 2),
                   Text(
                     city,
-                    style: const TextStyle(
-                      fontSize: 8,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 8, color: Colors.grey),
                   ),
                 ],
                 if (arrivalTime != null || departureTime != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     '${arrivalTime ?? ''} - ${departureTime ?? ''}',
-                    style: const TextStyle(
-                      fontSize: 8,
-                      color: Colors.blue,
-                    ),
+                    style: const TextStyle(fontSize: 8, color: Colors.blue),
                   ),
                 ],
                 if (!isViaStation) ...[
                   const SizedBox(height: 2),
                   const Text(
                     '经停站',
-                    style: TextStyle(
-                      fontSize: 8,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 8, color: Colors.grey),
                   ),
                 ],
               ],
@@ -784,8 +826,13 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   // 计算标签位置
-  Offset _calculateLabelPosition(int index, double pixelX, double pixelY,
-      double containerWidth, double containerHeight) {
+  Offset _calculateLabelPosition(
+    int index,
+    double pixelX,
+    double pixelY,
+    double containerWidth,
+    double containerHeight,
+  ) {
     const labelWidth = 80.0;
     const labelHeight = 40.0;
     const margin = 8.0;
@@ -832,11 +879,15 @@ class _FullRouteLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final validStations = stations.where((s) => s['hasLocation'] == true).toList();
+    final validStations = stations
+        .where((s) => s['hasLocation'] == true)
+        .toList();
     if (validStations.length < 2) return;
 
     final paint = Paint()
-      ..color = Colors.grey.shade300  // 灰色背景线条
+      ..color = Colors
+          .grey
+          .shade300 // 灰色背景线条
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -870,11 +921,15 @@ class _FilteredRouteLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final validStations = stations.where((s) => s['hasLocation'] == true).toList();
+    final validStations = stations
+        .where((s) => s['hasLocation'] == true)
+        .toList();
     if (validStations.length < 2) return;
 
     final paint = Paint()
-      ..color = Colors.blue.shade600  // 高亮蓝色线条
+      ..color = Colors
+          .blue
+          .shade600 // 高亮蓝色线条
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
