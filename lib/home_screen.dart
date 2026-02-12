@@ -585,9 +585,18 @@ class _JourneyCardState extends State<JourneyCard>
                             color: Theme.of(context).hintColor,
                           ),
                           const SizedBox(width: 4),
-                          // 修改这里：计算区间站点数量
                           Consumer<JourneyProvider>(
                             builder: (context, provider, child) {
+                              if (journey.fromStation == journey.toStation) {
+                                return Text(
+                                  '${journey.stations.length} 个站点（环线）',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                                );
+                              }
+
                               // 获取起始终到区间的站点索引
                               final fromIndex = journey.stations.indexWhere((station) =>
                               _normalizeStationName(station.stationName) == _normalizeStationName(journey.fromStation));
@@ -653,15 +662,14 @@ class _JourneyCardState extends State<JourneyCard>
         : journey.stations.length - 1;
 
     // 获取区间内的站点列表
-    final intervalStations = journey.stations.sublist(startIndex, endIndex + 1);
+    final intervalStations = (journey.fromStation == journey.toStation)
+        ? journey.stations
+        : journey.stations.sublist(startIndex, endIndex + 1);
 
     // 计算起始站的绝对天数差（作为基准）
     final baseDayDiff = startIndex >= 0 && startIndex < journey.stations.length
         ? journey.stations[startIndex].dayDifference
         : 0;
-
-
-
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1101,6 +1109,10 @@ class _JourneyCardState extends State<JourneyCard>
 
   int _getIntervalStationCount() {
     final journey = widget.journey;
+
+    if (journey.fromStation == journey.toStation) {
+      return journey.stations.length;
+    }
 
     // 获取起始终到区间的站点索引
     final fromIndex = journey.stations.indexWhere((station) =>

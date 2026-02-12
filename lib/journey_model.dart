@@ -49,7 +49,7 @@ class Journey {
       );
     }).toList();
 
-    // 确定起止站 - 修复逻辑
+    // 确定起止站 - 修复环线列车逻辑
     String actualFromStation;
     String actualToStation;
     String actualDepartureTime;
@@ -60,31 +60,55 @@ class Journey {
       actualFromStation = fromStation;
       actualToStation = toStation;
 
-      // 找到对应站点的时间
-      final fromStationData = allStations.firstWhere(
-            (s) => s.stationName == fromStation,
-        orElse: () => allStations.first,
-      );
-      final toStationData = allStations.firstWhere(
-            (s) => s.stationName == toStation,
-        orElse: () => allStations.last,
-      );
+      // 检查是否是环线列车（始发站和终点站相同）
+      if (fromStation == toStation) {
+        // 环线列车：使用第一个站作为出发站，最后一个站作为到达站
+        final firstStation = allStations.first;
+        final lastStation = allStations.last;
 
-      actualDepartureTime = fromStationData.departureTime;
-      actualArrivalTime = toStationData.arrivalTime;
+        actualDepartureTime = firstStation.departureTime;
+        actualArrivalTime = lastStation.arrivalTime;
+
+        // 确保显示正确的站名（使用第一个和最后一个站的名称）
+        actualFromStation = firstStation.stationName;
+        actualToStation = lastStation.stationName;
+      } else {
+        // 普通列车：找到对应站点的时间
+        final fromStationData = allStations.firstWhere(
+              (s) => s.stationName == fromStation,
+          orElse: () => allStations.first,
+        );
+        final toStationData = allStations.firstWhere(
+              (s) => s.stationName == toStation,
+          orElse: () => allStations.last,
+        );
+
+        actualDepartureTime = fromStationData.departureTime;
+        actualArrivalTime = toStationData.arrivalTime;
+      }
     } else {
       // 使用车次信息中的起止站
       actualFromStation = trainInfo['from_station']?.toString() ?? '';
       actualToStation = trainInfo['to_station']?.toString() ?? '';
       actualDepartureTime = trainInfo['start_time']?.toString() ?? '';
       actualArrivalTime = trainInfo['arrive_time']?.toString() ?? '';
+
+      // 检查是否是环线列车
+      if (actualFromStation == actualToStation && allStations.isNotEmpty) {
+        final firstStation = allStations.first;
+        final lastStation = allStations.last;
+
+        // 环线列车使用第一个站的发车时间和最后一个站的到达时间
+        actualDepartureTime = firstStation.departureTime;
+        actualArrivalTime = lastStation.arrivalTime;
+      }
     }
 
     // 验证站点名称，确保显示正确的名称
-    if (actualFromStation.isEmpty) {
+    if (actualFromStation.isEmpty && allStations.isNotEmpty) {
       actualFromStation = allStations.first.stationName;
     }
-    if (actualToStation.isEmpty) {
+    if (actualToStation.isEmpty && allStations.isNotEmpty) {
       actualToStation = allStations.last.stationName;
     }
 
@@ -173,7 +197,35 @@ class Journey {
     if (stations.isEmpty) return '--';
 
     try {
-      // 找到上车站和下车站的索引
+      if (fromStation == toStation) {
+        final firstStation = stations.first;
+        final lastStation = stations.last;
+
+        final startTime = _parseTime(firstStation.departureTime);
+        final endTime = _parseTime(lastStation.arrivalTime);
+
+        if (startTime == null || endTime == null) return '--';
+
+        // 计算天数差
+        final dayDiff = lastStation.dayDifference - firstStation.dayDifference;
+
+        int minutes = endTime.difference(startTime).inMinutes;
+        minutes += dayDiff * 24 * 60; // 加上跨天的时间
+
+        if (minutes < 0) return '--';
+
+        final hours = minutes ~/ 60;
+        final mins = minutes % 60;
+
+        if (hours > 0) {
+          if (dayDiff > 0) return '$hours小时$mins分\n跨$dayDiff天\n环线';
+          return '$hours小时$mins分\n环线';
+        } else {
+          return '$mins分钟\n环线';
+        }
+      }
+
+      // 普通列车的原有逻辑
       final fromIndex = stations.indexWhere((s) => s.stationName == fromStation);
       final toIndex = stations.indexWhere((s) => s.stationName == toStation);
 

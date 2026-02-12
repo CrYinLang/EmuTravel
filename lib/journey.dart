@@ -61,6 +61,12 @@ class _AddJourneyPageState extends State<AddJourneyPage>
 
   Map<String, String> _stationNameMap = {};
 
+  String _normalizeStationName(String name) {
+    if (name.isEmpty) return '';
+    // 移除"站"字和空格
+    return name.replaceAll('站', '').replaceAll(' ', '').trim();
+  }
+
   Future<void> _loadStations() async {
     setState(() => _loadingStations = true);
     try {
@@ -88,8 +94,11 @@ class _AddJourneyPageState extends State<AddJourneyPage>
   }
 
   String _getStationName(String telecode) {
-    String cleanTelecode = telecode.replaceAll(' ', '');
-    return _stationNameMap[cleanTelecode] ?? telecode;
+    return _stationNameMap[telecode.replaceAll(' ', '')] ?? telecode;
+  }
+
+  String _cleanStationName(String name) {
+    return name.replaceAll(' ', '');
   }
 
   @override
@@ -506,8 +515,8 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         'station_train_code': fields[3],
         'from_station_code': fields[4],
         'to_station_code': fields[5],
-        'from_station': stationMap[fields[4]] ?? fields[4],
-        'to_station': stationMap[fields[5]] ?? fields[5],
+        'from_station': _cleanStationName(stationMap[fields[4]] ?? fields[4]),
+        'to_station': _cleanStationName(stationMap[fields[5]] ?? fields[5]),
         'start_time': fields[8],
         'arrive_time': fields[9],
         'run_time': fields[10],
@@ -599,7 +608,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                 (stop) =>
             {
               'stationNo': stop['StationNo'] ?? '',
-              'stationName': stop['StationName'] ?? '',
+              'stationName': _cleanStationName(stop['StationName'])                                                                             ,
               'arriveTime': stop['ArriveTime'] ?? '--:--',
               'departTime': stop['DepartTime'] ?? '--:--',
               'stayTime': stop['StayWayStationTime'] ?? '0',
@@ -1613,62 +1622,87 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     String arrTime = item['arrive_time']?.toString() ?? '--:--';
     String runTime = item['run_time']?.toString() ?? '--';
 
+    // 检查是否是环线列车（始发站和终点站相同）
+    bool isCircularLine = _getStationName(item['from_station']) == _getStationName(item['to_station']);
+
     if (isStation && stopData.isNotEmpty) {
       final fromStationName = _fromName;
       final toStationName = _toName;
 
       if (fromStationName != null && toStationName != null) {
-        // 在停靠站数据中查找选择的车站
-        Map<String, dynamic>? fromStation;
-        Map<String, dynamic>? toStation;
+        // 对于环线列车选择同一车站的特殊处理
+        if (isCircularLine && fromStationName == toStationName) {
+          // 环线列车：使用第一个站的发车时间和最后一个站的到达时间
+          final firstStop = stopData.first as Map<String, dynamic>?;
+          final lastStop = stopData.last as Map<String, dynamic>?;
 
-        for (final stop in stopData) {
-          final station = stop as Map<String, dynamic>;
-          final stationName = station['stationName'] as String?;
+          if (firstStop != null && lastStop != null) {
+            final firstDep = firstStop['departTime'] as String?;
+            final lastArr = lastStop['arriveTime'] as String?;
 
-          if (stationName == fromStationName) {
-            fromStation = station;
+            if (firstDep != null && lastArr != null) {
+              final firstDayDiff = _parseDayDifference(firstStop['DayDifference']);
+              final lastDayDiff = _parseDayDifference(lastStop['DayDifference']);
+              final totalDayDiff = lastDayDiff - firstDayDiff;
+
+              depTime = firstDep;
+              arrTime = lastArr;
+              runTime = _calcRunTime(firstDep, lastArr, totalDayDiff.toString());
+            }
           }
-          if (stationName == toStationName) {
-            toStation = station;
+        } else {
+          // 原有的非环线逻辑保持不变
+          Map<String, dynamic>? fromStation;
+          Map<String, dynamic>? toStation;
+
+          for (final stop in stopData) {
+            final station = stop as Map<String, dynamic>;
+            final stationName = station['stationName'] as String?;
+
+            if (stationName == fromStationName) {
+              fromStation = station;
+            }
+            if (stationName == toStationName) {
+              toStation = station;
+            }
+
+            // 如果两个都找到了，提前退出循环
+            if (fromStation != null && toStation != null) break;
           }
 
-          // 如果两个都找到了，提前退出循环
-          if (fromStation != null && toStation != null) break;
-        }
+          if (fromStation != null && toStation != null) {
+            // 获取上车站的发车/到达时间
+            final fromDep = fromStation['departTime'] as String?;
+            final fromArr = fromStation['arriveTime'] as String?;
 
-        if (fromStation != null && toStation != null) {
-          // 获取上车站的发车/到达时间
-          final fromDep = fromStation['departTime'] as String?;
-          final fromArr = fromStation['arriveTime'] as String?;
+            // 获取下车站的到达/发车时间
+            final toArr = toStation['arriveTime'] as String?;
+            final toDep = toStation['departTime'] as String?;
 
-          // 获取下车站的到达/发车时间
-          final toArr = toStation['arriveTime'] as String?;
-          final toDep = toStation['departTime'] as String?;
+            // 上车站时间：优先发车时间，其次到达时间
+            final selectedDepTime = fromDep ?? fromArr ?? '--:--';
+            // 下车站时间：优先到达时间，其次发车时间
+            final selectedArrTime = toArr ?? toDep ?? '--:--';
 
-          // 上车站时间：优先发车时间，其次到达时间
-          final selectedDepTime = fromDep ?? fromArr ?? '--:--';
-          // 下车站时间：优先到达时间，其次发车时间
-          final selectedArrTime = toArr ?? toDep ?? '--:--';
+            // 计算跨天信息
+            final fromDayDiff = int.tryParse(fromStation['DayDifference']?.toString() ?? '0') ?? 0;
+            final toDayDiff = int.tryParse(toStation['DayDifference']?.toString() ?? '0') ?? 0;
+            final dayOffset = (toDayDiff - fromDayDiff).abs();
 
-          // 计算跨天信息
-          final fromDayDiff = int.tryParse(fromStation['DayDifference']?.toString() ?? '0') ?? 0;
-          final toDayDiff = int.tryParse(toStation['DayDifference']?.toString() ?? '0') ?? 0;
-          final dayOffset = (toDayDiff - fromDayDiff).abs();
-
-          if (selectedDepTime != '--:--' && selectedArrTime != '--:--') {
-            depTime = selectedDepTime;
-            arrTime = selectedArrTime;
-            runTime = _calcRunTime(
-              selectedDepTime,
-              selectedArrTime,
-              dayOffset.toString(),
-            );
+            if (selectedDepTime != '--:--' && selectedArrTime != '--:--') {
+              depTime = selectedDepTime;
+              arrTime = selectedArrTime;
+              runTime = _calcRunTime(
+                selectedDepTime,
+                selectedArrTime,
+                dayOffset.toString(),
+              );
+            }
           }
         }
       }
     } else if (stopData.isNotEmpty) {
-      // 车次查询模式保持原有逻辑
+      // 车次查询模式：对于环线列车也使用完整运行时间
       final firstStop =
           stopData.cast<Map<String, dynamic>?>().firstWhere(
                 (stop) => stop?['isFirst'] == true,
@@ -1697,8 +1731,11 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         final firstDep = firstStop['departTime'] as String?;
         final lastArr = lastStop['arriveTime'] as String?;
         if (firstDep != null && lastArr != null) {
-          final dayDiff = _parseDayDifference(lastStop['DayDifference']);
-          runTime = _calcRunTime(firstDep, lastArr, dayDiff.toString());
+          final firstDayDiff = _parseDayDifference(firstStop['DayDifference']);
+          final lastDayDiff = _parseDayDifference(lastStop['DayDifference']);
+          final totalDayDiff = lastDayDiff - firstDayDiff;
+
+          runTime = _calcRunTime(firstDep, lastArr, totalDayDiff.toString());
         }
       }
     }
@@ -1735,7 +1772,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                             Row(
                               children: [
                                 Text(
-                                  item['station_train_code'] ?? '--',
+                                  '${item['station_train_code'] ?? '--'}${isCircularLine ? ' (环线)' : ''}',
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -2148,8 +2185,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     );
   }
 
-  Widget _buildStopSection(int index, List<dynamic> stops, bool loading,
-      bool isStation,) {
+  Widget _buildStopSection(int index, List<dynamic> stops, bool loading, bool isStation) {
     if (loading) return const Center(child: CircularProgressIndicator());
     if (stops.isEmpty) {
       return GestureDetector(
@@ -2166,13 +2202,13 @@ class _AddJourneyPageState extends State<AddJourneyPage>
       );
     }
 
-    // 修改这里：使用选择的日期，而不是数据中的日期
+    final item = isStation ? _stationResults[index] : _trainResults[index];
     final trainDate = _selectedDate ?? DateTime.now();
 
-    return _buildStopList(stops, trainDate);
+    return _buildStopList(stops, trainDate, item);
   }
 
-  Widget _buildStopList(List<dynamic> stops, DateTime trainDate, {bool isSelectable = false, Function(int)? onStationTap}) {
+  Widget _buildStopList(List<dynamic> stops, DateTime trainDate, Map<String, dynamic> journey, {bool isSelectable = false, Function(int)? onStationTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -2180,405 +2216,321 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: StatefulBuilder(
-        builder: (context, setState) {
-          // 选择状态管理
-          String? selectedFromStation;
-          String? selectedToStation;
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: stops.length,
+        itemBuilder: (context, index) {
+          final stop = stops[index] as Map<String, dynamic>;
+          final no = stop['stationNo']?.toString() ?? '';
+          final name = stop['stationName']?.toString() ?? '';
+          final arr = stop['arriveTime']?.toString() ?? '--:--';
+          final dep = stop['departTime']?.toString() ?? '--:--';
+          final stay = int.tryParse(stop['stayTime']?.toString() ?? '0') ?? 0;
+          final first = (stop['isFirst'] as bool?) ?? false;
+          final last = (stop['isLast'] as bool?) ?? false;
+          final terminal = first || last;
 
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            itemCount: stops.length,
-            itemBuilder: (context, index) {
-              final stop = stops[index] as Map<String, dynamic>;
-              final no = stop['stationNo']?.toString() ?? '';
-              final name = stop['stationName']?.toString() ?? '';
-              final arr = stop['arriveTime']?.toString() ?? '--:--';
-              final dep = stop['departTime']?.toString() ?? '--:--';
-              final stay = int.tryParse(stop['stayTime']?.toString() ?? '0') ?? 0;
-              final first = (stop['isFirst'] as bool?) ?? false;
-              final last = (stop['isLast'] as bool?) ?? false;
-              final terminal = first || last;
+          // 安全转换 DayDifference
+          final dayDiffValue = stop['DayDifference'];
+          int dayDiff = 0;
 
-              // 安全转换 DayDifference
-              final dayDiffValue = stop['DayDifference'];
-              int dayDiff = 0;
+          if (dayDiffValue != null) {
+            if (dayDiffValue is int) {
+              dayDiff = dayDiffValue;
+            } else if (dayDiffValue is String) {
+              dayDiff = int.tryParse(dayDiffValue) ?? 0;
+            } else if (dayDiffValue is num) {
+              dayDiff = dayDiffValue.toInt();
+            }
+          }
 
-              if (dayDiffValue != null) {
-                if (dayDiffValue is int) {
-                  dayDiff = dayDiffValue;
-                } else if (dayDiffValue is String) {
-                  dayDiff = int.tryParse(dayDiffValue) ?? 0;
-                } else if (dayDiffValue is num) {
-                  dayDiff = dayDiffValue.toInt();
-                }
+          bool passed = false;
+          if (first) {
+            passed = _isTimePassed(trainDate, dep, dayDiff, last);
+          } else if (last) {
+            passed = _isTimePassed(trainDate, arr, dayDiff, last);
+          } else if (arr != '--:--') {
+            passed = _isTimePassed(trainDate, arr, dayDiff, last);
+          } else if (dep != '--:--') {
+            passed = _isTimePassed(trainDate, dep, dayDiff, last);
+          }
+
+          // 修改这里：正确判断上车站和下车站
+          bool isFromStation = false;
+          bool isToStation = false;
+
+          // 获取当前journey的fromStation和toStation
+          final currentFromStation = _normalizeStationName(journey['from_station']?.toString() ?? '');
+          final currentToStation = _normalizeStationName(journey['to_station']?.toString() ?? '');
+          final currentStationName = _normalizeStationName(name);
+
+          // 只有当车站名称完全匹配时才显示标识
+          if (currentStationName == currentFromStation) {
+            isFromStation = true;
+          }
+          if (currentStationName == currentToStation) {
+            isToStation = true;
+          }
+
+          // 对于环线列车（始发站=终点站），比第一个站晚的相同名称站就是下车站
+          bool isCircularLine = currentFromStation == currentToStation;
+          if (isCircularLine && isFromStation && isToStation) {
+            // 找到第一个出现的该车站
+            int firstOccurrenceIndex = -1;
+            for (int i = 0; i < stops.length; i++) {
+              final station = stops[i] as Map<String, dynamic>;
+              final stationName = _normalizeStationName(station['stationName']?.toString() ?? '');
+              if (stationName == currentStationName) {
+                firstOccurrenceIndex = i;
+                break;
               }
+            }
 
-              bool passed = false;
-              if (first) {
-                passed = _isTimePassed(trainDate, dep, dayDiff, last);
-              } else if (last) {
-                passed = _isTimePassed(trainDate, arr, dayDiff, last);
-              } else if (arr != '--:--') {
-                passed = _isTimePassed(trainDate, arr, dayDiff, last);
-              } else if (dep != '--:--') {
-                passed = _isTimePassed(trainDate, dep, dayDiff, last);
+            // 如果当前车站不是第一个出现的，就显示为下车站
+            if (firstOccurrenceIndex != -1 && index > firstOccurrenceIndex) {
+              isToStation = true;
+              isFromStation = false;
+            } else {
+              isFromStation = true;
+              isToStation = false;
+            }
+          }
+
+          BorderRadius? getBorderRadius() {
+            if (stops.length == 1) {
+              return BorderRadius.circular(12);
+            } else if (index == 0) {
+              return const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              );
+            } else if (index == stops.length - 1) {
+              return const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              );
+            }
+            return null;
+          }
+
+          return GestureDetector(
+            onTap: isSelectable ? () {
+              if (onStationTap != null) {
+                onStationTap(index);
               }
-
-              // 选择模式下的状态判断
-              bool isFromStation = false;
-              bool isToStation = false;
-              bool isSelectableStation = true;
-
-              if (isSelectable) {
-                isFromStation = name == selectedFromStation;
-                isToStation = name == selectedToStation;
-
-                // 如果已经选择了上车站，下车站必须在上车站之后
-                if (selectedFromStation != null && selectedToStation == null) {
-                  final fromIndex = stops.indexWhere((s) =>
-                  (s as Map<String, dynamic>)['stationName'] == selectedFromStation);
-                  isSelectableStation = index > fromIndex;
-                }
-              }
-
-              // 原有显示模式下的车站判断（用于车站查询模式）
-              bool isSelectedStation(Map<String, dynamic> stop) {
-                final stationName = stop['stationName']?.toString() ?? '';
-                final fromName = _fromName ?? '';
-                final toName = _toName ?? '';
-
-                // 处理车站名称匹配，考虑"站"字的有无
-                bool matchStation(String name1, String name2) {
-                  if (name1.isEmpty || name2.isEmpty) return false;
-
-                  // 去除"站"字后比较
-                  String cleanName(String name) {
-                    return name.replaceAll('站', '').trim();
-                  }
-
-                  final clean1 = cleanName(name1);
-                  final clean2 = cleanName(name2);
-
-                  return clean1 == clean2 || name1.contains(clean2) ||
-                      name2.contains(clean1);
-                }
-
-                final matchFrom = matchStation(stationName, fromName);
-                final matchTo = matchStation(stationName, toName);
-
-                return matchFrom || matchTo;
-              }
-
-              // 原有显示模式下的车站标识
-              final isFromStationOriginal = isSelectedStation(stop) &&
-                  name.replaceAll('站', '') == (_fromName ?? '').replaceAll('站', '');
-              final isToStationOriginal = isSelectedStation(stop) &&
-                  name.replaceAll('站', '') == (_toName ?? '').replaceAll('站', '');
-
-              BorderRadius? getBorderRadius() {
-                if (stops.length == 1) {
-                  return BorderRadius.circular(12);
-                } else if (index == 0) {
-                  return const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  );
-                } else if (index == stops.length - 1) {
-                  return const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
-                  );
-                }
-                return null;
-              }
-
-              return GestureDetector(
-                onTap: isSelectable && isSelectableStation ? () {
-                  if (onStationTap != null) {
-                    onStationTap(index);
-                  } else {
-                    // 内部状态管理
-                    setState(() {
-                      if (selectedFromStation == null) {
-                        // 选择上车站
-                        selectedFromStation = name;
-                      } else if (selectedToStation == null) {
-                        // 选择下车站
-                        selectedToStation = name;
-                      } else {
-                        // 重新选择上车站
-                        selectedFromStation = name;
-                        selectedToStation = null;
-                      }
-                    });
-                  }
-                } : null,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: index < stops.length - 1
-                        ? Border(
-                      bottom: BorderSide(
-                        color: Theme.of(context).dividerColor,
-                        width: 1,
-                      ),
-                    )
-                        : null,
-                    color: isSelectable
-                        ? (isFromStation || isToStation
-                        ? (isDark ? Colors.blue.withAlpha(50) : Colors.blue.shade50)
-                        : !isSelectableStation
-                        ? (isDark ? Colors.grey.withAlpha(30) : Colors.grey.shade100)
-                        : Theme.of(context).colorScheme.surface)
-                        : (isFromStationOriginal || isToStationOriginal
-                        ? (isDark ? Colors.blue.withAlpha(50) : Colors.blue.shade50)
-                        : passed
-                        ? (isDark ? Colors.orange.withAlpha(50) : Colors.orange.shade50)
-                        : terminal
-                        ? (isDark ? Colors.green.withAlpha(50) : Colors.green.shade50)
-                        : Theme.of(context).colorScheme.surface),
-                    borderRadius: getBorderRadius(),
+            } : null,
+            child: Container(
+              decoration: BoxDecoration(
+                color: passed
+                    ? Colors.orange.withAlpha(30)
+                    : (isFromStation || isToStation
+                    ? Colors.blue.withAlpha(30)
+                    : terminal
+                    ? Colors.green.withAlpha(30)
+                    : Theme.of(context).colorScheme.surface),
+                border: index < stops.length - 1
+                    ? Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).dividerColor,
+                    width: 1,
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 车站编号圆圈
-                        Container(
-                          width: 30,
-                          height: 30,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isSelectable
-                                ? (isFromStation || isToStation
-                                ? Theme.of(context).primaryColor
-                                : !isSelectableStation
-                                ? Colors.grey
-                                : (isDark ? Colors.blue.shade700 : Colors.blue))
-                                : (isFromStationOriginal || isToStationOriginal
-                                ? Theme.of(context).primaryColor
-                                : passed
-                                ? (isDark ? Colors.orange.shade700 : Colors.orange)
-                                : terminal
-                                ? (isDark ? Colors.green.shade700 : Colors.blue)
-                                : (isDark ? Colors.blue.shade700 : Colors.blue)),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            no,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                )
+                    : null,
+                borderRadius: getBorderRadius(),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 车站编号圆圈
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: passed
+                            ? Colors.orange
+                            : (isFromStation || isToStation
+                            ? Colors.blue
+                            : terminal
+                            ? Colors.green
+                            : Colors.black),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        no,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Text(
-                                          "$name站",
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      "$name站",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    if (passed) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          '已过时',
                                           style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w500,
-                                            color: Theme.of(context).colorScheme.onSurface,
+                                            fontSize: 10,
+                                            color: Colors.white,
                                           ),
                                         ),
-                                        if (!isSelectable && passed)
-                                          Container(
-                                            margin: const EdgeInsets.only(left: 8),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isDark
-                                                  ? Colors.orange.shade700
-                                                  : Colors.orange,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: const Text(
-                                              '已过时',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.white,
-                                              ),
-                                            ),
+                                      ),
+                                    ],
+                                    if (dayDiff > 0) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isDark
+                                              ? Colors.purple.withAlpha(76)
+                                              : Colors.purple.shade100,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          '+$dayDiff天',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                        if (!isSelectable && dayDiff > 0)
-                                          Container(
-                                            margin: const EdgeInsets.only(left: 8),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isDark
-                                                  ? Colors.purple.withAlpha(76)
-                                                  : Colors.purple.shade100,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              '+$dayDiff天',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: Theme.of(context).colorScheme.onSurface,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              // 车站标识 - 修改这里
+                              if (isFromStation) ...[
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      '上',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                  // 车站标识
-                                  if (isSelectable) ...[
-                                    if (isFromStation)
-                                      Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).primaryColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            '上',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              if (isToStation) ...[
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      '下',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                    if (isToStation)
-                                      Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).primaryColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            '下',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _timeBlock('到达', first ? '--' : arr, passed, first),
+                              if (stay > 0)
+                                Column(
+                                  children: [
+                                    Text(
+                                      '停站',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Theme.of(context).hintColor,
                                       ),
-                                  ] else ...[
-                                    // 原有显示模式下的标识
-                                    if (isFromStationOriginal)
-                                      Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.blue,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            '上',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    if (isToStationOriginal)
-                                      Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.blue,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            '下',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _timeBlock('到达', first ? '--' : arr, passed, first),
-                                  if (stay > 0)
-                                    Column(
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
                                       children: [
-                                        Text(
-                                          '停站',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Theme.of(context).hintColor,
-                                          ),
+                                        Icon(
+                                          Icons.access_time,
+                                          size: 12,
+                                          color: passed
+                                              ? Colors.orange.shade700
+                                              : (isDark
+                                              ? Colors.green.shade300
+                                              : Colors.green.shade600),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.access_time,
-                                              size: 12,
-                                              color: passed
-                                                  ? Colors.orange.shade700
-                                                  : (isDark
-                                                  ? Colors.green.shade300
-                                                  : Colors.green.shade600),
-                                            ),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              '$stay分',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
-                                                color: passed
-                                                    ? Colors.orange.shade700
-                                                    : (isDark
-                                                    ? Colors.green.shade300
-                                                    : Colors.green.shade600),
-                                              ),
-                                            ),
-                                          ],
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '$stay分',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: passed
+                                                ? Colors.orange.shade700
+                                                : (isDark
+                                                ? Colors.green.shade300
+                                                : Colors.green.shade600),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  _timeBlock('发车', last ? '--' : dep, passed, last),
-                                ],
-                              ),
+                                  ],
+                                ),
+                              _timeBlock('发车', last ? '--' : dep, passed, last),
                             ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           );
         },
       ),

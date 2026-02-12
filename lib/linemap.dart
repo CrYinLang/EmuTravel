@@ -79,7 +79,8 @@ class LineMapContent extends StatefulWidget {
 }
 
 class _LineMapContentState extends State<LineMapContent> {
-  List<Map<String, dynamic>> _positionedStations = [];
+  List<Map<String, dynamic>> _allPositionedStations = []; // 完整路线
+  List<Map<String, dynamic>> _stopPositionedStations = []; // 经停站
   bool _isLoading = true;
   String _errorMessage = '';
   int? _selectedStationIndex;
@@ -93,27 +94,38 @@ class _LineMapContentState extends State<LineMapContent> {
 
   Future<void> _loadRouteMapData() async {
     try {
-      List<Map<String, dynamic>> filteredStations = [];
+      List<Map<String, dynamic>> allStations = []; // 完整路线数据
+      List<Map<String, dynamic>> stopStations = []; // 经停站数据
 
       try {
-        // 1. 尝试从API获取车站数据
+        // 1. 从API获取完整车站数据
         final stationsFromApi = await _fetchStationsFromApi(widget.journey.trainCode)
             .timeout(const Duration(seconds: 10));
-        // 2. 过滤API数据，只保留journey.stations中存在的车站
-        filteredStations = _filterApiStations(stationsFromApi, widget.journey.stations);
+
+        allStations = stationsFromApi;
+
+        // 2. 获取经停站数据（从journey.stations转换而来）
+        stopStations = _convertJourneyStationsToApiFormat(widget.journey.stations);
+
       } catch (e) {
-        // 3. 如果API失败，直接使用journey.stations
-        filteredStations = _convertJourneyStationsToApiFormat(widget.journey.stations);
+        // 如果API失败，使用journey.stations作为完整数据
+        allStations = _convertJourneyStationsToApiFormat(widget.journey.stations);
+        stopStations = allStations;
       }
 
-      // 4. 从本地JSON匹配车站坐标
-      final stationsWithLocation = await _matchStationsWithLocalData(filteredStations);
+      // 3. 为完整路线数据匹配坐标
+      final allStationsWithLocation = await _matchStationsWithLocalData(allStations);
+
+      // 4. 为经停站数据匹配坐标（确保有准确的坐标信息）
+      final stopStationsWithLocation = await _matchStationsWithLocalData(stopStations);
 
       // 5. 计算相对位置
-      final positionedStations = _calculateRelativePositions(stationsWithLocation);
+      final positionedAllStations = _calculateRelativePositions(allStationsWithLocation);
+      final positionedStopStations = _calculateRelativePositions(stopStationsWithLocation);
 
       setState(() {
-        _positionedStations = positionedStations;
+        _allPositionedStations = positionedAllStations; // 完整路线
+        _stopPositionedStations = positionedStopStations; // 经停站
         _isLoading = false;
       });
     } catch (e) {
@@ -122,38 +134,6 @@ class _LineMapContentState extends State<LineMapContent> {
         _isLoading = false;
       });
     }
-  }
-
-  // 过滤API数据，只保留journey.stations中存在的车站
-  List<Map<String, dynamic>> _filterApiStations(
-      List<Map<String, dynamic>> apiStations,
-      List<StationDetail> journeyStations
-      ) {
-    // 提取journey.stations中的车站名称（清理格式）
-    final journeyStationNames = journeyStations.map((station) {
-      return station.stationName.replaceAll('站', '').trim();
-    }).toList();
-
-    // 过滤API数据
-    final filtered = apiStations.where((apiStation) {
-      final apiStationName = (apiStation['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
-      final isInJourney = journeyStationNames.contains(apiStationName);
-
-      return isInJourney;
-    }).toList();
-
-    // 确保车站顺序与journey.stations一致
-    filtered.sort((a, b) {
-      final aName = (a['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
-      final bName = (b['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
-
-      final aIndex = journeyStationNames.indexOf(aName);
-      final bIndex = journeyStationNames.indexOf(bName);
-
-      return aIndex.compareTo(bIndex);
-    });
-
-    return filtered;
   }
 
   // 将journey.stations转换为API数据格式
@@ -181,12 +161,7 @@ class _LineMapContentState extends State<LineMapContent> {
 
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          "trainNumber": trainNumber
-        }),
+        body: {"trainNumber": trainNumber},
       );
 
       if (response.statusCode == 200) {
@@ -208,30 +183,31 @@ class _LineMapContentState extends State<LineMapContent> {
   // 从本地JSON匹配车站坐标
   Future<List<Map<String, dynamic>>> _matchStationsWithLocalData(List<Map<String, dynamic>> apiStations) async {
     try {
+      // 加载本地车站数据文件
       final jsonString = await rootBundle.loadString('assets/stations.json');
       final List<dynamic> allStations = json.decode(jsonString);
 
+      // 存储匹配后的车站数据
       final List<Map<String, dynamic>> matchedStations = [];
 
       for (final apiStation in apiStations) {
         final stationName = apiStation['stationName']?.toString() ?? '未知车站';
-        final cleanName = stationName.replaceAll('站', '').trim();
 
-        dynamic matched;
-        try {
-          matched = allStations.firstWhere(
-                (station) {
-              final jsonName = station['name']?.toString() ?? '';
-              final cleanJsonName = jsonName.replaceAll('站', '').trim();
-              return cleanJsonName == cleanName;
-            },
-            orElse: () => null,
-          );
-        } catch (e) {
-          matched = null;
-        }
+        // 清洗车站名称：移除"站"字并去除空格
+        String cleanName = stationName.replaceAll('站', '').trim();
+
+        // 策略1：精确匹配
+        dynamic matched = allStations.firstWhere(
+              (station) {
+            final jsonName = station['name']?.toString() ?? '';
+            final cleanJsonName = jsonName.replaceAll('站', '').trim();
+            return cleanJsonName == cleanName;
+          },
+          orElse: () => null,
+        );
 
         if (matched != null) {
+          // 从匹配的本地数据中提取坐标信息
           final location = matched['location']?.toString() ?? '';
           final coords = location.split(',');
           double longitude = 0;
@@ -242,6 +218,7 @@ class _LineMapContentState extends State<LineMapContent> {
             latitude = double.tryParse(coords[1]) ?? 0;
           }
 
+          // 构建匹配成功的车站数据
           matchedStations.add({
             'name': stationName,
             'location': location,
@@ -250,7 +227,6 @@ class _LineMapContentState extends State<LineMapContent> {
             'longitude': longitude,
             'latitude': latitude,
             'hasLocation': location.isNotEmpty && coords.length == 2,
-            // 保留API数据
             'railwayLineName': apiStation['railwayLineName'] ?? '未知线路',
             'distance': apiStation['distance'] ?? 0,
             'isViaStation': apiStation['isViaStation'] ?? true,
@@ -258,15 +234,26 @@ class _LineMapContentState extends State<LineMapContent> {
             'departureTime': apiStation['departureTime'],
           });
         } else {
+          // 如果本地没有匹配到车站，使用模拟坐标基于距离计算
+          final totalDistance = apiStations.last['distance'] as int? ?? 1;
+          final currentDistance = apiStation['distance'] as int? ?? 0;
+          final progress = currentDistance / totalDistance;
+
+          // 南宁到广州大致方向：从西向东
+          final baseLng = 108.3; // 南宁经度
+          final baseLat = 22.8;  // 南宁纬度
+          final targetLng = 113.3; // 广州经度
+          final targetLat = 23.1;  // 广州纬度
+
+          // 构建模拟坐标的车站数据
           matchedStations.add({
             'name': stationName,
             'location': null,
             'city': '',
             'telecode': '',
-            'longitude': 0,
-            'latitude': 0,
-            'hasLocation': false,
-            // 保留API数据
+            'longitude': baseLng + (targetLng - baseLng) * progress,
+            'latitude': baseLat + (targetLat - baseLat) * progress,
+            'hasLocation': true, // 标记为有坐标
             'railwayLineName': apiStation['railwayLineName'] ?? '未知线路',
             'distance': apiStation['distance'] ?? 0,
             'isViaStation': apiStation['isViaStation'] ?? true,
@@ -276,19 +263,11 @@ class _LineMapContentState extends State<LineMapContent> {
         }
       }
 
+      // 返回匹配完成的车站列表
       return matchedStations;
+
     } catch (e) {
-      // 如果匹配失败，返回原始数据（无坐标）
-      return apiStations.map((station) => {
-        ...station,
-        'name': station['stationName'] ?? '未知车站',
-        'location': null,
-        'city': '',
-        'telecode': '',
-        'longitude': 0,
-        'latitude': 0,
-        'hasLocation': false,
-      }).toList();
+      return [];
     }
   }
 
@@ -425,7 +404,7 @@ class _LineMapContentState extends State<LineMapContent> {
         _selectedStationIndex = clickedIndex;
 
         // 检查附近站点，如果距离过近也显示
-        for (int i = 0; i < _positionedStations.length; i++) {
+        for (int i = 0; i < _stopPositionedStations.length; i++) {
           if (i != clickedIndex && _isTooClose(i, clickedIndex, containerWidth, containerHeight)) {
             _stationLabelsVisible[i] = true;
           }
@@ -436,8 +415,8 @@ class _LineMapContentState extends State<LineMapContent> {
 
   // 检查两个站点是否距离过近
   bool _isTooClose(int index1, int index2, double containerWidth, double containerHeight) {
-    final station1 = _positionedStations[index1];
-    final station2 = _positionedStations[index2];
+    final station1 = _stopPositionedStations[index1];
+    final station2 = _stopPositionedStations[index2];
 
     final x1 = (station1['relativeX'] as double) * containerWidth;
     final y1 = (station1['relativeY'] as double) * containerHeight;
@@ -524,7 +503,10 @@ class _LineMapContentState extends State<LineMapContent> {
 
                           CustomPaint(
                             size: squareSize,
-                            painter: _RouteLinePainter(_positionedStations),
+                            painter: _RouteLinePainter(
+                              allStations: _allPositionedStations,
+                              stopStations: _stopPositionedStations,
+                            ),
                           ),
                           ..._buildStationMarkers(squareSize.width, squareSize.height),
                           ..._buildStationLabels(squareSize.width, squareSize.height),
@@ -542,7 +524,7 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   List<Widget> _buildStationMarkers(double containerWidth, double containerHeight) {
-    return _positionedStations.map((station) {
+    return _stopPositionedStations.map((station) {
       final x = station['relativeX'] as double;
       final y = station['relativeY'] as double;
       final index = station['index'] as int;
@@ -592,7 +574,7 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   List<Widget> _buildStationLabels(double containerWidth, double containerHeight) {
-    return _positionedStations.map((station) {
+    return _stopPositionedStations.map((station) {
       final x = station['relativeX'] as double;
       final y = station['relativeY'] as double;
       final index = station['index'] as int;
@@ -741,18 +723,33 @@ class _LineMapContentState extends State<LineMapContent> {
 }
 
 class _RouteLinePainter extends CustomPainter {
-  final List<Map<String, dynamic>> stations;
+  final List<Map<String, dynamic>> allStations; // 完整路线
+  final List<Map<String, dynamic>> stopStations; // 经停站
 
-  _RouteLinePainter(this.stations);
+  _RouteLinePainter({
+    required this.allStations,
+    required this.stopStations,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final validStations = stations.where((s) => s['hasLocation'] == true).toList();
+    // 1. 绘制完整路线连线
+    _drawCompleteRoute(canvas, size);
+
+    // 2. 绘制所有车站的小圆点
+    _drawAllStationDots(canvas, size);
+
+    // 3. 绘制经停站的大圆点
+    _drawStopStationMarkers(canvas, size);
+  }
+
+  void _drawCompleteRoute(Canvas canvas, Size size) {
+    final validStations = allStations.where((s) => s['hasLocation'] == true).toList();
     if (validStations.length < 2) return;
 
     final paint = Paint()
-      ..color = Colors.blue.shade600
-      ..strokeWidth = 3
+      ..color = Colors.blue.shade300.withValues(alpha:0.6)
+      ..strokeWidth = 2
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
@@ -771,6 +768,39 @@ class _RouteLinePainter extends CustomPainter {
     }
 
     canvas.drawPath(path, paint);
+  }
+
+  void _drawAllStationDots(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey.withValues(alpha:0.5)
+      ..style = PaintingStyle.fill;
+
+    for (final station in allStations) {
+      final x = (station['relativeX'] as double) * size.width;
+      final y = (station['relativeY'] as double) * size.height;
+
+      canvas.drawCircle(Offset(x, y), 1.5, paint);
+    }
+  }
+
+  void _drawStopStationMarkers(Canvas canvas, Size size) {
+    final fillPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.fill;
+
+    final strokePaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    for (final station in stopStations) {
+      final x = (station['relativeX'] as double) * size.width;
+      final y = (station['relativeY'] as double) * size.height;
+
+      // 绘制大圆点
+      canvas.drawCircle(Offset(x, y), 4, fillPaint);
+      canvas.drawCircle(Offset(x, y), 4, strokePaint);
+    }
   }
 
   @override
