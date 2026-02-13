@@ -234,6 +234,68 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     }
   }
 
+  Future<String> _getBenWu(String trainCode, String date) async {
+
+    if (!RegExp(r'^[GDCS]', caseSensitive: false).hasMatch(trainCode)) {
+      return '';
+    }
+
+    final url = Uri.parse('https://rail.moefactory.com/api/trainNumber/query');
+
+    final resp1 = await http.post(url, body: {
+      "trainNumber": trainCode,
+      "date": date
+    });
+
+    final Map<String, dynamic> responseData = jsonDecode(resp1.body);
+
+    // 检查响应码
+    if (responseData['code'] == 200) {
+      final List<dynamic> dataList = responseData['data']['data'];
+
+      if (dataList.isNotEmpty) {
+        final int trainIndex = dataList[0]['trainIndex'];
+
+        final url2 = Uri.parse('https://rail.moefactory.com/api/trainDetails/query');
+
+        final resp2 = await http.post(url2, body: {
+          "trainIndex": trainIndex.toString(),
+          "date": date
+        });
+
+        final Map<String, dynamic> responseData2 = jsonDecode(resp2.body);
+
+        // 检查响应码
+        if (responseData2['code'] == 200) {
+          final String? trainModel = responseData2['data']['routing']['trainModel'];
+
+          if (trainModel != null && trainModel.isNotEmpty) {
+            String result = trainModel.substring(0, trainModel.length > 14 ? 14 : trainModel.length);
+
+            final commaIndex = result.indexOf(',');
+            final chineseCommaIndex = result.indexOf('，');
+
+            if (commaIndex != -1) {
+              result = result.substring(0, commaIndex);
+            } else if (chineseCommaIndex != -1) {
+              result = result.substring(0, chineseCommaIndex);
+            }
+
+            return result;
+          } else {
+            return '未知';
+          }
+        } else {
+          return '未知';
+        }
+      } else {
+        return '未知';
+      }
+    }
+
+    return '未知';
+  }
+
   Future<void> _searchStation() async {
     if (_selectedDate == null) {
       _showSnack('请先选择日期');
@@ -272,6 +334,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         ),
         headers: _getApiHeaders(),
       );
+
       // 等待两个请求完成
       final responses = await Future.wait([ticketFuture, priceFuture]);
       final ticketResponse = responses[0];
@@ -594,6 +657,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         headers: headers,
         body: json.encode(body),
       );
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['RetCode'] == 1 && data['StopList'] != null) {
@@ -1288,6 +1352,8 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         ? (_stationDetails[index] ?? [])
         : (_trainDetails[index] ?? []);
 
+    final trainCode = item['station_train_code']?.toString() ?? '';
+
     String depTime = item['start_time']?.toString() ?? '--:--';
     String arrTime = item['arrive_time']?.toString() ?? '--:--';
     String runTime = item['run_time']?.toString() ?? '--';
@@ -1362,10 +1428,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
             if (selectedDepTime != '--:--' && selectedArrTime != '--:--') {
               depTime = selectedDepTime;
               arrTime = selectedArrTime;
-              runTime = _calcRunTime(
-                selectedDepTime,
-                selectedArrTime,
-                dayOffset.toString(),
+              runTime = _calcRunTime(selectedDepTime,selectedArrTime,dayOffset.toString(),
               );
             }
           }
@@ -1448,10 +1511,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                                     fontWeight: FontWeight.bold,
                                     color: expired
                                         ? Colors.grey
-                                        : Theme
-                                        .of(context)
-                                        .colorScheme
-                                        .primary,
+                                        : Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                                 if (expired) ...[
@@ -1499,10 +1559,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                                 size: 16,
                                 color: expired
                                     ? Colors.grey
-                                    : Theme
-                                    .of(context)
-                                    .colorScheme
-                                    .primary,
+                                    : Theme.of(context).colorScheme.primary,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -1521,9 +1578,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                                 size: 16,
                                 color: expired
                                     ? Colors.grey.shade400
-                                    : (isDark
-                                    ? Colors.grey.shade300
-                                    : Colors.grey),
+                                    : (isDark ? Colors.grey.shade300 : Colors.grey),
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -1549,9 +1604,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                                   fontSize: 13,
                                   color: expired
                                       ? Colors.grey.shade400
-                                      : (isDark
-                                      ? Colors.grey.shade300
-                                      : Colors.grey.shade600),
+                                      : (isDark ? Colors.grey.shade300 : Colors.grey.shade600),
                                 ),
                               ),
                               if (isStation &&
@@ -1565,10 +1618,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                                     fontWeight: FontWeight.w600,
                                     color: expired
                                         ? Colors.grey.shade400
-                                        : Theme
-                                        .of(context)
-                                        .colorScheme
-                                        .primary,
+                                        : Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                               ],
@@ -1607,9 +1657,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                         size: 24,
                         color: expired
                             ? Colors.grey.shade400
-                            : (isDark
-                            ? Colors.blue.shade300
-                            : Colors.blue.shade300),
+                            : (isDark ? Colors.blue.shade300 : Colors.blue.shade300),
                       ),
                     ],
                   ),
@@ -1622,6 +1670,97 @@ class _AddJourneyPageState extends State<AddJourneyPage>
 
           // 坐席信息
           if (isStation) _buildSeatList(item),
+
+          const SizedBox(height: 20),
+
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    '信息仅供参考,合理安排时间行程\n买票请上12306,发货请上95306',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                if (trainCode.isNotEmpty && _selectedDate != null)
+                  FutureBuilder<String>(
+                    future: _getBenWu(trainCode, _formattedDate),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        );
+                      } else if (snapshot.hasError) {
+                        return Tooltip(
+                          message: '',
+                          child: Icon(
+                            Icons.error_outline,
+                            size: 16,
+                            color: Colors.red,
+                          ),
+                        );
+                      } else if (snapshot.hasData && snapshot.data != '未知') {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(width: 4),
+                              Text(
+                                '${snapshot.data!}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade300, width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.train,
+                                size: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '本务: 未知',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
 
           const SizedBox(height: 20),
 
@@ -1688,6 +1827,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
       ),
     );
   }
+
 
   Widget _buildSeatList(Map<String, dynamic> item) {
     // 座位映射

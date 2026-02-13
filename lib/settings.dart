@@ -20,10 +20,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showTrainImageSystem = true;
   bool _showTrainImagePersonal = true;
   bool _showTrainBureauIcon = true;
+  bool _showRealTrainMap = true;
 
   static const String _trainImageSystemKey = 'show_train_image_system';
   static const String _trainImagePersonalKey = 'show_train_image_personal';
   static const String _trainBureauIconKey = 'show_train_bureau_icon';
+  static const String _showRealTrainMapKey = 'show_real_train_map';
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showTrainImageSystem = prefs.getBool(_trainImageSystemKey) ?? true;
       _showTrainImagePersonal = prefs.getBool(_trainImagePersonalKey) ?? true;
       _showTrainBureauIcon = prefs.getBool(_trainBureauIconKey) ?? true;
+      _showRealTrainMap = prefs.getBool(_showRealTrainMapKey) ?? true;
     });
   }
 
@@ -137,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Tool.buildSection(
           context: context,
           icon: Icons.train,
-          title: '列车显示设置  (没做,等着吧)',
+          title: '列车显示设置  (就做了最后一个)',
           children: [
             Tool.buildSwitch(
               context: context,
@@ -182,6 +185,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _showTrainBureauIcon = newValue;
                 });
                 await _saveSetting(_trainBureauIconKey, newValue);
+              },
+            ),
+            const Divider(height: 1),
+
+            Tool.buildSwitch(
+              context: context,
+              title: '显示相似走向图',
+              subtitle: '显示更相似列车走行走向图(网络)',
+              icon: Icons.map,
+              value: _showRealTrainMap,
+              onChanged: (bool newValue) async {
+                setState(() {
+                  _showRealTrainMap = newValue;
+                });
+                await _saveSetting(_showRealTrainMapKey, newValue);
               },
             ),
           ],
