@@ -134,11 +134,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         const SizedBox(height: 20),
 
-        // 新增的列车显示设置
         Tool.buildSection(
           context: context,
           icon: Icons.train,
-          title: '列车显示设置',
+          title: '列车显示设置  (没做,等着吧)',
           children: [
             Tool.buildSwitch(
               context: context,
