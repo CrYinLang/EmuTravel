@@ -2225,11 +2225,18 @@ class _AddJourneyPageState extends State<AddJourneyPage>
         toStation: isStation ? _toName : null,
       );
 
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => LineMapDialog(journey: journey),
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.8,
+            child: LineMapDialog(journey: journey),
+          ),
         ),
       );
+
     } catch (e) {
       _showSnack('打开线路图失败: $e');
     }
