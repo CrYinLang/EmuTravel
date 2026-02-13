@@ -15,20 +15,53 @@ class LineMapDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${journey.trainCode}次列车线路图'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildRouteSummary(context, journey),
-            Expanded(child: LineMapContent(journey: journey)),
-          ],
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: Material(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            constraints: const BoxConstraints(
+              maxWidth: 600,
+              maxHeight: 700,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 自定义 AppBar
+                Container(
+                  height: kToolbarHeight,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${journey.trainCode}次列车线路图',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // 内容区域
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        _buildRouteSummary(context, journey),
+                        const SizedBox(height: 16),
+                        Expanded(child: LineMapContent(journey: journey)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -600,8 +633,7 @@ class _LineMapContentState extends State<LineMapContent> {
                   maxHeight: 400,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(

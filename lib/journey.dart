@@ -11,7 +11,7 @@ import 'journey_provider.dart';
 import 'linemap.dart';
 import 'journey_model.dart';
 import 'tool.dart';
-import 'journey_detail_screen.dart';
+import 'home_screen.dart';
 
 class AddJourneyPage extends StatefulWidget {
   const AddJourneyPage({super.key});
