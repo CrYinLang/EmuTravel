@@ -13,8 +13,8 @@ class Journey {
   final bool isStation;
 
   // 座位相关字段
-  String seatType;        // 座位类型代码
-  String seatInfo;        // 座位信息文本（如 "01车12F"）
+  String seatType;
+  String seatInfo;
 
   Journey({
     required this.id,
@@ -29,10 +29,9 @@ class Journey {
     required this.stations,
     this.isStation = false,
     this.seatType = '',
-    this.seatInfo = '',    // 座位信息文本
+    this.seatInfo = '',
   });
 
-  // 从 Map 和站点列表创建 Journey
   factory Journey.fromMapWithStations({
     required Map<String, dynamic> trainInfo,
     required DateTime date,
@@ -41,9 +40,8 @@ class Journey {
     String? fromStation,
     String? toStation,
     String seatType = '',
-    String seatInfo = '',  // 座位信息文本参数
+    String seatInfo = '',
   }) {
-    // 解析所有站点
     final allStations = stationList.map((s) {
       return StationDetail(
         stationName: s['stationName']?.toString() ?? '',
