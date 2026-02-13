@@ -1666,12 +1666,12 @@ class _AddJourneyPageState extends State<AddJourneyPage>
 
               const SizedBox(width: 12),
 
-              // 查看线路图按钮
+              // 查看线路走向图按钮
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () => _openLineMap(item, isStation),
                   icon: const Icon(Icons.map, size: 20),
-                  label: const Text('线路图'),
+                  label: const Text('线路走向图'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueGrey,
                     foregroundColor: Colors.white,
@@ -2211,7 +2211,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
           : (_trainDetails[currentIndex] ?? []);
 
       if (stopData.isEmpty) {
-        _showSnack('暂无站点信息，无法显示线路图');
+        _showSnack('暂无站点信息，无法显示线路走向图');
         return;
       }
 
@@ -2238,7 +2238,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
       );
 
     } catch (e) {
-      _showSnack('打开线路图失败: $e');
+      _showSnack('打开线路走向图失败: $e');
     }
   }
 

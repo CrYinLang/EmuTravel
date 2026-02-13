@@ -732,7 +732,7 @@ class __JourneyDetailContentState extends State<_JourneyDetailContent>
                       _showRouteMapDialog(context);
                     },
                     icon: const Icon(Icons.share),
-                    label: const Text('线路图'),
+                    label: const Text('线路走向图'),
                   ),
                 ),
               ],

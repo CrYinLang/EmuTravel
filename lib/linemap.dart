@@ -905,7 +905,7 @@ class _FullRouteLinePainter extends CustomPainter {
     if (validStations.length < 2) return;
 
     final paint = Paint()
-      ..color = Colors.blue.shade600 // 修改为蓝色线条
+      ..color = Colors.blue.shade600
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
