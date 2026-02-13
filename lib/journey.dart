@@ -1620,7 +1620,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
 
           const SizedBox(height: 20),
 
-          // 坐席信息（只在车站查询中显示）
+          // 坐席信息
           if (isStation) _buildSeatList(item),
 
           const SizedBox(height: 20),
@@ -1629,7 +1629,6 @@ class _AddJourneyPageState extends State<AddJourneyPage>
 
           const SizedBox(height: 20),
 
-// 使用 Row 布局放置两个按钮
           Row(
             children: [
               // 添加车次按钮
@@ -1703,9 +1702,9 @@ class _AddJourneyPageState extends State<AddJourneyPage>
       'yz_num': '硬座',
       'wz_num': '无座',
       'tz_num': '特等座',
-      'qt_num': '其他',
       'gg_num': '优选一等座',
       'srrb_num': '动卧',
+      'qt_num': '其他',
       'yb_num': '预留',
     };
 
@@ -3225,18 +3224,240 @@ class _AddJourneyPageState extends State<AddJourneyPage>
       }
     }
 
+    // 显示座位选择弹窗
+    _showSeatSelectionDialog(
+      train: train,
+      actualDate: actualDate,
+      stationList: stationList,
+      isStation: isStation,
+      actualFromStation: actualFromStation,
+      actualToStation: actualToStation,
+    );
+  }
+
+  // 座位选择弹窗
+  void _showSeatSelectionDialog({
+    required Map<String, dynamic> train,
+    required DateTime actualDate,
+    required List<dynamic> stationList,
+    required bool isStation,
+    required String actualFromStation,
+    required String actualToStation,
+  }) {
+    String? selectedSeatType = 'wz_num';
+    String seatInfo = '';  // 改为字符串类型
+    final TextEditingController seatInfoController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('选择座位'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 座位类型选择器
+                DropdownButtonFormField<String>(
+                  initialValue: selectedSeatType,
+                  decoration: const InputDecoration(
+                    labelText: '座位类型',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'swz_num',
+                      child: Text('商务座 (${train['swz_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'zy_num',
+                      child: Text('一等座 (${train['zy_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'ze_num',
+                      child: Text('二等座 (${train['ze_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'gr_num',
+                      child: Text('高级软卧 (${train['gr_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rw_num',
+                      child: Text('软卧 (${train['rw_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'yw_num',
+                      child: Text('硬卧 (${train['yw_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rz_num',
+                      child: Text('软座 (${train['rz_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'yz_num',
+                      child: Text('硬座 (${train['yz_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'wz_num',
+                      child: Text('无座 (${train['wz_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'tz_num',
+                      child: Text('特等座 (${train['tz_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'gg_num',
+                      child: Text('优选一等座 (${train['gg_num'] ?? '--'})'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'srrb_num',
+                      child: Text('动卧 (${train['srrb_num'] ?? '--'})'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedSeatType = value;
+                      // 如果选择无座，清空座位信息
+                      if (value == 'wz_num') {
+                        seatInfo = '';
+                        seatInfoController.text = '';
+                      } else if (seatInfo.isEmpty) {
+                        // 可以选择设置默认提示文本
+                        seatInfoController.text = '';
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // 座位信息输入（无座时禁用）
+                TextFormField(
+                  controller: seatInfoController,
+                  enabled: selectedSeatType != 'wz_num',
+                  decoration: InputDecoration(
+                    labelText: '座位信息',
+                    hintText: '例如: 01车12F',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: selectedSeatType != 'wz_num'
+                        ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          seatInfo = '';
+                          seatInfoController.clear();
+                        });
+                      },
+                    )
+                        : null,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      seatInfo = value;
+                    });
+                  },
+                ),
+
+                // 添加提示文本
+                if (selectedSeatType != 'wz_num')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '请输入座位信息，如: 01车12F、02车厢05A等',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).hintColor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (selectedSeatType == null) {
+                    _showSnack('请选择座位类型');
+                    return;
+                  }
+
+                  if (selectedSeatType != 'wz_num' && seatInfo.isEmpty) {
+                    _showSnack('请输入座位信息');
+                    return;
+                  }
+
+                  // 创建行程并保存
+                  _createAndSaveJourney(
+                    train: train,
+                    actualDate: actualDate,
+                    stationList: stationList,
+                    isStation: isStation,
+                    actualFromStation: actualFromStation,
+                    actualToStation: actualToStation,
+                    seatType: selectedSeatType!,
+                    seatInfo: seatInfo,  // 传递文本格式的座位信息
+                  );
+
+                  Navigator.pop(context);
+                },
+                child: const Text('确定'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // 创建并保存行程
+  void _createAndSaveJourney({
+    required Map<String, dynamic> train,
+    required DateTime actualDate,
+    required List<dynamic> stationList,
+    required bool isStation,
+    required String actualFromStation,
+    required String actualToStation,
+    required String seatType,
+    required String seatInfo,  // 改为字符串参数
+  }) {
     final journey = Journey.fromMapWithStations(
       trainInfo: train,
       date: actualDate,
       stationList: stationList,
       isStation: isStation,
-      fromStation: actualFromStation,  // 确保传递用户选择的站点
-      toStation: actualToStation,      // 确保传递用户选择的站点
+      fromStation: actualFromStation,
+      toStation: actualToStation,
+      seatType: seatType,
+      seatInfo: seatInfo,  // 传递座位信息文本
     );
 
     if (mounted) {
       Provider.of<JourneyProvider>(context, listen: false).addJourney(journey);
-      _showSnack('已添加 ${train['station_train_code']} 次列车 ($actualFromStation -> $actualToStation)');
+
+      // 显示添加成功的提示
+      final seatTypeNames = {
+        'swz_num': '商务座',
+        'zy_num': '一等座',
+        'ze_num': '二等座',
+        'gr_num': '高级软卧',
+        'rw_num': '软卧',
+        'yw_num': '硬卧',
+        'rz_num': '软座',
+        'yz_num': '硬座',
+        'wz_num': '无座',
+        'tz_num': '特等座',
+        'gg_num': '优选一等座',
+        'srrb_num': '动卧',
+      };
+
+      final seatName = seatTypeNames[seatType] ?? '未知座位';
+      final infoText = seatType == 'wz_num' ? '' : ' ($seatInfo)';
+
+      _showSnack('已添加 ${train['station_train_code']} 次列车 '
+          '($actualFromStation -> $actualToStation) '
+          '$seatName$infoText');
 
       // 延迟返回主页
       Future.delayed(const Duration(milliseconds: 800), () {

@@ -121,9 +121,11 @@ class HomeScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => const AddJourneyPage())),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const AddJourneyPage(), // 确保类名正确
+          ),
+        ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
@@ -638,6 +640,54 @@ class _JourneyCardState extends State<JourneyCard>
     );
   }
 
+  Widget _buildSeatInfoDisplay(Journey journey) {
+    // 座位类型映射
+    final Map<String, String> seatTypeNames = {
+      'swz_num': '商务座',
+      'zy_num': '一等座',
+      'ze_num': '二等座',
+      'gr_num': '高级软卧',
+      'rw_num': '软卧',
+      'yw_num': '硬卧',
+      'rz_num': '软座',
+      'yz_num': '硬座',
+      'wz_num': '无座',
+      'tz_num': '特等座',
+      'gg_num': '优选一等座',
+      'srrb_num': '动卧',
+    };
+
+    final seatType = journey.seatType;
+    final seatInfo = journey.seatInfo;
+
+    // 如果没有座位信息，显示默认提示
+    if (seatType.isEmpty) {
+      return Text(
+        '未选择座位',
+        style: TextStyle(
+          fontSize: 16,
+          color: Theme.of(context).hintColor,
+        ),
+      );
+    }
+
+    final seatName = seatTypeNames[seatType] ?? '未知座位';
+
+    // 构建显示文本
+    String displayText = seatName;
+    if (seatType != 'wz_num' && seatInfo.isNotEmpty) {
+      displayText += ' $seatInfo';
+    }
+
+    return Text(
+      displayText,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
   Widget _buildExpandedContent() {
     final journey = widget.journey;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -823,6 +873,25 @@ class _JourneyCardState extends State<JourneyCard>
                 ],
               ),
             ),
+
+            // 第五行：座位信息（新增）
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Text(
+                    '座位信息:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildSeatInfoDisplay(journey),
+                ],
+              ),
+            ),
+
           ]),
 
           const SizedBox(height: 16),

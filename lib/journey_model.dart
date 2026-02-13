@@ -1,5 +1,4 @@
 // journey_model.dart
-
 class Journey {
   final String id;
   final String trainCode;
@@ -11,7 +10,11 @@ class Journey {
   final String arrivalTime;
   final DateTime travelDate;
   final List<StationDetail> stations;
-  final bool isStation; // 是否是车站查询模式添加的
+  final bool isStation;
+
+  // 座位相关字段
+  String seatType;        // 座位类型代码
+  String seatInfo;        // 座位信息文本（如 "01车12F"）
 
   Journey({
     required this.id,
@@ -25,6 +28,8 @@ class Journey {
     required this.travelDate,
     required this.stations,
     this.isStation = false,
+    this.seatType = '',
+    this.seatInfo = '',    // 座位信息文本
   });
 
   // 从 Map 和站点列表创建 Journey
@@ -33,8 +38,10 @@ class Journey {
     required DateTime date,
     required List<dynamic> stationList,
     required bool isStation,
-    String? fromStation,  // 用户选择的上车站
-    String? toStation,    // 用户选择的下车站
+    String? fromStation,
+    String? toStation,
+    String seatType = '',
+    String seatInfo = '',  // 座位信息文本参数
   }) {
     // 解析所有站点
     final allStations = stationList.map((s) {
@@ -124,6 +131,8 @@ class Journey {
       travelDate: date,
       stations: allStations,
       isStation: isStation,
+      seatType: seatType,
+      seatInfo: seatInfo,  // 传递座位信息文本
     );
   }
 
@@ -141,6 +150,8 @@ class Journey {
       'travelDate': travelDate.toIso8601String(),
       'stations': stations.map((s) => s.toMap()).toList(),
       'isStation': isStation,
+      'seatType': seatType,
+      'seatInfo': seatInfo,  // 保存座位信息文本
     };
   }
 
@@ -152,12 +163,10 @@ class Journey {
           .map((s) => StationDetail.fromMap(s as Map<String, dynamic>))
           .toList();
 
-      // 安全解析日期
       DateTime travelDate;
       try {
         travelDate = DateTime.parse(map['travelDate'] as String);
       } catch (e) {
-        // 如果日期解析失败，使用当前日期
         travelDate = DateTime.now();
       }
 
@@ -173,9 +182,10 @@ class Journey {
         travelDate: travelDate,
         stations: stations,
         isStation: map['isStation'] as bool? ?? false,
+        seatType: map['seatType']?.toString() ?? '',
+        seatInfo: map['seatInfo']?.toString() ?? '',  // 解析座位信息文本
       );
     } catch (e) {
-      // 如果解析失败，返回一个空的 Journey 对象
       return Journey(
         id: 'error_${DateTime.now().millisecondsSinceEpoch}',
         trainCode: '解析错误',
@@ -283,13 +293,15 @@ class Journey {
       'travelDate': travelDate.toIso8601String(),
       'stationCount': stations.length,
       'isStation': isStation,
+      'seatType': seatType,
+      'seatInfo': seatInfo,
     };
   }
 
   // 重写 toString 方法用于调试
   @override
   String toString() {
-    return 'Journey{id: $id, trainCode: $trainCode, fromStation: $fromStation, toStation: $toStation, travelDate: $travelDate, stations: ${stations.length}}';
+    return 'Journey{id: $id, trainCode: $trainCode, fromStation: $fromStation, toStation: $toStation, travelDate: $travelDate, stations: ${stations.length}, seatType: $seatType, seatInfo: $seatInfo}';
   }
 
   // 重写 equals 和 hashCode 用于比较
@@ -316,6 +328,8 @@ class Journey {
     DateTime? travelDate,
     List<StationDetail>? stations,
     bool? isStation,
+    String? seatType,
+    String? seatInfo,
   }) {
     return Journey(
       id: id ?? this.id,
@@ -329,6 +343,8 @@ class Journey {
       travelDate: travelDate ?? this.travelDate,
       stations: stations ?? this.stations,
       isStation: isStation ?? this.isStation,
+      seatType: seatType ?? this.seatType,
+      seatInfo: seatInfo ?? this.seatInfo,
     );
   }
 
@@ -498,10 +514,8 @@ class JourneyValidator {
   }
 }
 
-// 行程数据迁移工具（用于未来版本升级）
 class JourneyDataMigrator {
   static Map<String, dynamic> migrateFromV1ToV2(Map<String, dynamic> oldData) {
-    // 如果有数据格式变更，在这里进行迁移
     return oldData;
   }
 }
