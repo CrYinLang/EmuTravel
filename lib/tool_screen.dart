@@ -205,7 +205,7 @@ class _StationScreenState extends State<StationScreen> {
 
     // 只显示特定状态的车次
     if (status != 1 && status != 2) { // 1=晚点/候车, 2=正在检票
-      return const SizedBox.shrink(); // 隐藏其他状态的车次
+      return const SizedBox.shrink();
     }
 
     Color statusColor = Theme.of(context).colorScheme.onSurface;
@@ -301,7 +301,7 @@ class _StationScreenState extends State<StationScreen> {
                 Expanded(
                   child: Text(
                     '检票口: ${train['checkoutName']}',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    style: TextStyle(color: Colors.green),
                   ),
                 ),
               ],

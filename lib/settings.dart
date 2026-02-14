@@ -21,11 +21,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showTrainImagePersonal = true;
   bool _showTrainBureauIcon = true;
   bool _showRealTrainMap = true;
+  bool _showAutoUpdate = true;
 
   static const String _trainImageSystemKey = 'show_train_image_system';
   static const String _trainImagePersonalKey = 'show_train_image_personal';
   static const String _trainBureauIconKey = 'show_train_bureau_icon';
-  static const String _showRealTrainMapKey = 'show_real_train_map';
+  static const String _realTrainMapKey = 'show_real_train_map';
+  static const String _showAutoUpdateKey = 'show_auto_update';
 
   @override
   void initState() {
@@ -41,7 +43,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showTrainImageSystem = prefs.getBool(_trainImageSystemKey) ?? true;
       _showTrainImagePersonal = prefs.getBool(_trainImagePersonalKey) ?? true;
       _showTrainBureauIcon = prefs.getBool(_trainBureauIconKey) ?? true;
-      _showRealTrainMap = prefs.getBool(_showRealTrainMapKey) ?? true;
+      _showRealTrainMap = prefs.getBool(_realTrainMapKey) ?? true;
+      _showAutoUpdate = prefs.getBool(_showAutoUpdateKey) ?? true;
     });
   }
 
@@ -199,7 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {
                   _showRealTrainMap = newValue;
                 });
-                await _saveSetting(_showRealTrainMapKey, newValue);
+                await _saveSetting(_realTrainMapKey, newValue);
               },
             ),
           ],
@@ -209,7 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         _buildSection(
           icon: Icons.info,
-          title: '应用信息',
+          title: '应用信息/设置',
           children: [
             _buildTile(
               title: '版本',
@@ -217,11 +220,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               trailingIcon: Icons.arrow_forward_ios,
               onTap: () => UpdateUI.showUpdateFlow(context),
             ),
+
+            const Divider(height: 1),
             _buildTile(
               title: '开发者',
               subtitle: 'Cr.YinLang',
               trailingIcon: Icons.arrow_forward_ios,
               onTap: () => Tool.showDeveloperDialog(context),
+            ),
+
+            const Divider(height: 1),
+
+            Tool.buildSwitch(
+              context: context,
+              title: '自动检测更新',
+              subtitle: '在有更新时自动弹出',
+              icon: Icons.browser_updated_sharp,
+              value: _showAutoUpdate,
+              onChanged: (bool newValue) async {
+                setState(() {
+                  _showAutoUpdate = newValue;
+                });
+                await _saveSetting(_showAutoUpdateKey, newValue);
+              },
             ),
           ],
         ),
