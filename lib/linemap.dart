@@ -39,7 +39,7 @@ class LineMapDialog extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${journey.trainCode}次列车线路图',
+                        '${journey.trainCode}次列车走向图',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ],
@@ -245,7 +245,7 @@ class _LineMapContentState extends State<LineMapContent> {
             children: [
               Icon(Icons.warning_amber, color: Colors.orange),
               SizedBox(width: 8),
-              Text('线路图数据异常'),
+              Text('走向图数据异常'),
             ],
           ),
           content: SingleChildScrollView(
@@ -505,7 +505,7 @@ class _LineMapContentState extends State<LineMapContent> {
             'latitude': latitude,
             'hasLocation': location.isNotEmpty && coords.length == 2,
             // 保留API数据
-            'railwayLineName': apiStation['railwayLineName'] ?? '未知线路',
+            'railwayLineName': apiStation['railwayLineName'] ?? '未知走向',
             'distance': apiStation['distance'] ?? 0,
             'isViaStation': apiStation['isViaStation'] ?? true,
             'arrivalTime': apiStation['arrivalTime'],
@@ -521,7 +521,7 @@ class _LineMapContentState extends State<LineMapContent> {
             'latitude': 0,
             'hasLocation': false,
             // 保留API数据
-            'railwayLineName': apiStation['railwayLineName'] ?? '未知线路',
+            'railwayLineName': apiStation['railwayLineName'] ?? '未知走向',
             'distance': apiStation['distance'] ?? 0,
             'isViaStation': apiStation['isViaStation'] ?? true,
             'arrivalTime': apiStation['arrivalTime'],
@@ -726,7 +726,7 @@ class _LineMapContentState extends State<LineMapContent> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('正在加载线路图...'),
+            Text('正在加载走向图...'),
           ],
         ),
       );
