@@ -18,7 +18,7 @@ import 'dart:io';
 bool _isDarkMode = true;
 
 class Vars {
-  static const String lastUpdate = '26-02-13-21-20';
+  static const String lastUpdate = '26-02-14-19-00';
   static const String version = '1.1.2.0';
   static const String build = '1120';
   static const String urlServer =
