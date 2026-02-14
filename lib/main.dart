@@ -18,8 +18,8 @@ bool _isDarkMode = true;
 
 class Vars {
   static const String lastUpdate = '26-02-13-21-20';
-  static const String version = '1.1.1.3';
-  static const String build = '1113';
+  static const String version = '1.1.2.0';
+  static const String build = '1120';
   static const String urlServer =
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
   static const String commandServer =
@@ -27,9 +27,7 @@ class Vars {
 
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
     try {
-      final response = await http
-          .get(Uri.parse(urlServer))
-          .timeout(const Duration(seconds: 10));
+      final response = await http.get(Uri.parse(urlServer)).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
