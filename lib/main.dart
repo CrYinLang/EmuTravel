@@ -21,40 +21,27 @@ class Vars {
   static const String lastUpdate = '26-02-14-19-00';
   static const String version = '1.1.2.0';
   static const String build = '1120';
-  static const String urlServer =
-      'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
-  static const String commandServer =
-      'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
+  static const String urlServer ='https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
+  static const String commandServer ='https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
 
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
-    try {
-      final response = await http.get(Uri.parse(urlServer)).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      }
-    } catch (e) {
-      debugPrint('获取版本信息失败: $e');
+    final response = await http.get(Uri.parse(urlServer)).timeout(const Duration(seconds: 10));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
     }
     return null;
   }
 
   static Future<Map<String, dynamic>?> fetchCommand() async {
-    try {
-      final response = await http
-          .get(Uri.parse(commandServer))
-          .timeout(const Duration(seconds: 10));
+    final response = await http.get(Uri.parse(commandServer)).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data is List && data.isNotEmpty) {
-          return data[0] as Map<String, dynamic>;
-        } else if (data is Map<String, dynamic>) {
-          return data;
-        }
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data is List && data.isNotEmpty) {
+        return data[0] as Map<String, dynamic>;
+      } else if (data is Map<String, dynamic>) {
+        return data;
       }
-    } catch (e) {
-      debugPrint('获取命令失败: $e');
     }
     return null;
   }
@@ -104,6 +91,7 @@ class _EmuTravelState extends State<EmuTravel> {
   @override
   void initState() {
     super.initState();
+    _handleUpdate();
     _themeManager.addListener(_onThemeChanged);
     _isDarkMode = _themeManager.isDarkMode;
     _initializeApp();
@@ -122,31 +110,24 @@ class _EmuTravelState extends State<EmuTravel> {
   }
 
   Future<void> _checkRemoteCommand() async {
-    try {
-      final command = await Vars.fetchCommand();
+    final command = await Vars.fetchCommand();
 
-      if (command == null) {
-        debugPrint('未获取到远程命令');
-        return;
-      }
+    if (command == null) {
+      return;
+    }
 
-      // 处理消息
-      final message = command['message']?.toString();
-      if (message != null && message.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _commandMessage = message;
-          });
-        }
+    final message = command['message']?.toString();
+    if (message != null && message.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _commandMessage = message;
+        });
       }
+    }
 
-      // 处理操作
-      final operation = command['operation']?.toString() ?? '';
-      if (operation.isNotEmpty) {
-        _handleOperation(operation);
-      }
-    } catch (e) {
-      debugPrint('检查远程命令失败: $e');
+    final operation = command['operation']?.toString() ?? '';
+    if (operation.isNotEmpty) {
+      _handleOperation(operation);
     }
   }
 
@@ -162,11 +143,6 @@ class _EmuTravelState extends State<EmuTravel> {
           exit(0);
         });
         break;
-      case 'update':
-        _handleUpdate();
-        break;
-      default:
-        debugPrint('未知操作: $operation');
     }
   }
 
