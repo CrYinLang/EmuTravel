@@ -181,7 +181,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.account_balance,
               value: _showTrainBureauIcon,
               onChanged: (bool newValue) async {
-                setState(() {_showTrainBureauIcon = newValue;});
+                setState(() {
+                  _showTrainBureauIcon = newValue;
+                });
                 await _saveSetting(_trainBureauIconKey, newValue);
               },
             ),
@@ -194,7 +196,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.map,
               value: _showRealTrainMap,
               onChanged: (bool newValue) async {
-                setState(() {_showRealTrainMap = newValue;});
+                setState(() {
+                  _showRealTrainMap = newValue;
+                });
                 await _saveSetting(_showRealTrainMapKey, newValue);
               },
             ),
