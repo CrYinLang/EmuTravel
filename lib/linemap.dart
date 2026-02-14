@@ -28,7 +28,6 @@ class LineMapDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 自定义 AppBar
                 Container(
                   height: kToolbarHeight,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -121,6 +120,51 @@ class _LineMapContentState extends State<LineMapContent> {
     _loadRouteMapData();
   }
 
+  bool _hasAnomalousSegments() {
+    for (int i = 1; i < _fullRouteStations.length; i++) {
+      final prevStation = _fullRouteStations[i - 1];
+      final currentStation = _fullRouteStations[i];
+
+      if (prevStation['hasLocation'] == true &&
+          currentStation['hasLocation'] == true) {
+        final dx = (currentStation['relativeX'] - prevStation['relativeX']) * 100;
+        final dy = (currentStation['relativeY'] - prevStation['relativeY']) * 100;
+        final segmentLength = sqrt(dx * dx + dy * dy);
+
+        // 如果线段长度超过10单位，视为异常
+        if (segmentLength > 10) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+// 获取异常线段信息
+  List<String> _getAnomalousSegmentInfo() {
+    final List<String> anomalies = [];
+
+    for (int i = 1; i < _fullRouteStations.length; i++) {
+      final prevStation = _fullRouteStations[i - 1];
+      final currentStation = _fullRouteStations[i];
+
+      if (prevStation['hasLocation'] == true &&
+          currentStation['hasLocation'] == true) {
+        final dx = (currentStation['relativeX'] - prevStation['relativeX']) * 100;
+        final dy = (currentStation['relativeY'] - prevStation['relativeY']) * 100;
+        final segmentLength = sqrt(dx * dx + dy * dy);
+
+        if (segmentLength > 10) {
+          anomalies.add(
+              '${prevStation['name']} → ${currentStation['name']}: '
+                  '${segmentLength.toStringAsFixed(2)}单位'
+          );
+        }
+      }
+    }
+    return anomalies;
+  }
+
   Future<void> _loadRouteMapData() async {
     try {
       final fullStationsFromApi = await _fetchStationsFromApi(
@@ -152,15 +196,15 @@ class _LineMapContentState extends State<LineMapContent> {
         _fullRouteStations = positionedFullRoute;
         _filteredStations = positionedFiltered;
         _isLoading = false;
+      });
 
-        // 如果使用后备数据，在UI上给予提示
-        if (fullStationsFromApi.firstOrNull?['stationSequence'] != null) {
-          // API数据有stationSequence字段，说明是后备数据
-          // 可以选择性地在UI上显示一个提示
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_hasAnomalousSegments()) {
+          _showAnomalyAlert();
         }
       });
+
     } catch (e) {
-      // 即使发生错误，也尝试使用后备数据
       try {
         final fallbackData = _createFallbackStationData();
         final filteredStations = _filterApiStations(
@@ -188,6 +232,50 @@ class _LineMapContentState extends State<LineMapContent> {
         });
       }
     }
+  }
+
+  void _showAnomalyAlert() {
+    final anomalies = _getAnomalousSegmentInfo();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('线路图数据异常'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('检测到以下异常线段，可能影响显示效果：'),
+              const SizedBox(height: 12),
+              ...anomalies.map((anomaly) =>
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text('• $anomaly'),
+                  )
+              ).toList(),
+              const SizedBox(height: 16),
+              const Text(
+                '请联系技术支持。',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('确定'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   List<Map<String, dynamic>> _calculatePositionsUsingFullRouteRange(
@@ -274,7 +362,6 @@ class _LineMapContentState extends State<LineMapContent> {
         x = x.clamp(0.0, 1.0);
         y = y.clamp(0.0, 1.0);
       } else {
-        // 对于无坐标的站点，使用线性插值
         x = 0.5;
         y = i / (targetStations.length - 1);
       }
@@ -290,17 +377,14 @@ class _LineMapContentState extends State<LineMapContent> {
     return positionedStations;
   }
 
-  // 过滤API数据，只保留journey.stations中存在的车站
   List<Map<String, dynamic>> _filterApiStations(
     List<Map<String, dynamic>> apiStations,
     List<StationDetail> journeyStations,
   ) {
-    // 提取journey.stations中的车站名称（清理格式）
     final journeyStationNames = journeyStations.map((station) {
       return station.stationName.replaceAll('站', '').trim();
     }).toList();
 
-    // 过滤API数据
     final filtered = apiStations.where((apiStation) {
       final apiStationName =
           (apiStation['stationName'] as String?)?.replaceAll('站', '').trim() ??
@@ -310,7 +394,6 @@ class _LineMapContentState extends State<LineMapContent> {
       return isInJourney;
     }).toList();
 
-    // 确保车站顺序与journey.stations一致
     filtered.sort((a, b) {
       final aName =
           (a['stationName'] as String?)?.replaceAll('站', '').trim() ?? '';
@@ -331,7 +414,6 @@ class _LineMapContentState extends State<LineMapContent> {
     return prefs.getBool(key) ?? true;
   }
 
-  // 从API获取车站数据
   Future<List<Map<String, dynamic>>> _fetchStationsFromApi(
       String trainNumber,
       ) async {
@@ -363,31 +445,23 @@ class _LineMapContentState extends State<LineMapContent> {
   List<Map<String, dynamic>> _createFallbackStationData() {
     final List<Map<String, dynamic>> fallbackStations = [];
 
-    // 使用固定增量距离（每站50公里）
-    double cumulativeDistance = 0;
-
     for (int i = 0; i < widget.journey.stations.length; i++) {
       final station = widget.journey.stations[i];
 
       fallbackStations.add({
         'stationName': station.stationName,
         'railwayLineName': widget.journey.trainCode,
-        'distance': cumulativeDistance.round(),
-        'isViaStation': true, // 默认为经停站
+        'isViaStation': true,
         'arrivalTime': station.arrivalTime,
         'departureTime': station.departureTime,
         'stationSequence': i + 1,
-        // 移除了不存在的stopTime字段
       });
     }
 
     return fallbackStations;
   }
 
-  // 从本地JSON匹配车站坐标
-  Future<List<Map<String, dynamic>>> _matchStationsWithLocalData(
-    List<Map<String, dynamic>> apiStations,
-  ) async {
+  Future<List<Map<String, dynamic>>> _matchStationsWithLocalData(List<Map<String, dynamic>> apiStations,) async {
     try {
       final jsonString = await rootBundle.loadString('assets/stations.json');
       final List<dynamic> allStations = json.decode(jsonString);

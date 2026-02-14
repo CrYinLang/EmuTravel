@@ -6,6 +6,7 @@ import 'home_screen.dart';
 import 'about_page.dart';
 import 'settings.dart';
 import 'update.dart';
+import 'tool_screen.dart';
 
 import 'journey_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -285,8 +286,10 @@ class _HomePageState extends State<HomePage> {
       case 0:
         return '行程中心';
       case 1:
-        return '关于页面';
+        return '工具';
       case 2:
+        return '关于页面';
+      case 3:
         return '个性化设置';
       default:
         return 'EmuTravel';
@@ -307,6 +310,7 @@ class _HomePageState extends State<HomePage> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '首页'),
+          BottomNavigationBarItem(icon: Icon(Icons.build), label: '工具'),
           BottomNavigationBarItem(icon: Icon(Icons.info), label: '关于'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: '设置'),
         ],
@@ -322,8 +326,10 @@ class _HomePageState extends State<HomePage> {
       case 0:
         return const HomeScreen();
       case 1:
-        return const AboutPage();
+        return const ToolScreen();
       case 2:
+        return const AboutPage();
+      case 3:
         return SettingsScreen(themeManager: widget.themeManager);
       default:
         return const HomeScreen();

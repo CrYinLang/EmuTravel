@@ -20,8 +20,7 @@ class AddJourneyPage extends StatefulWidget {
   State<AddJourneyPage> createState() => _AddJourneyPageState();
 }
 
-class _AddJourneyPageState extends State<AddJourneyPage>
-    with SingleTickerProviderStateMixin {
+class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProviderStateMixin {
   DateTime? _selectedDate;
   final _trainNumberCtrl = TextEditingController();
   bool _loading = false;
@@ -30,8 +29,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
   late AnimationController _animCtrl;
   late Animation<double> _anim;
   String? _fromCode, _toCode;
-  String? _fromName = '请选择',
-      _toName = '请选择';
+  String? _fromName = '请选择', _toName = '请选择';
   List<dynamic> _allStations = [];
   bool _loadingStations = false;
   List<dynamic> _stationResults = [];
@@ -280,7 +278,6 @@ class _AddJourneyPageState extends State<AddJourneyPage>
             } else if (chineseCommaIndex != -1) {
               result = result.substring(0, chineseCommaIndex);
             }
-
             return result;
           } else {
             return '未知';
@@ -422,8 +419,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
   }
 
   // 合并余票和价格数据
-  Map<String, dynamic> _mergePriceData(Map<String, dynamic> trainInfo,
-      Map<String, Map<String, dynamic>> priceMap,) {
+  Map<String, dynamic> _mergePriceData(Map<String, dynamic> trainInfo,Map<String, Map<String, dynamic>> priceMap,) {
     final trainCode = trainInfo['station_train_code'] as String?;
     final priceInfo = trainCode != null ? priceMap[trainCode] : null;
 
@@ -1718,7 +1714,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
                             children: [
                               const SizedBox(width: 4),
                               Text(
-                                '${snapshot.data!}',
+                                snapshot.data!,
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Theme.of(context).colorScheme.onSurface,
@@ -2340,7 +2336,6 @@ class _AddJourneyPageState extends State<AddJourneyPage>
 
   void _openLineMap(Map<String, dynamic> item, bool isStation) {
     try {
-      // 获取当前索引
       final currentIndex = isStation
           ? (_stationExpandedIndex ?? 0)
           : (_expandedIndex ?? 0);
@@ -2768,8 +2763,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     );
   }
 
-  bool _isTimePassed(DateTime trainDate, String? timeString, int dayDiff,
-      bool isLast,) {
+  bool _isTimePassed(DateTime trainDate, String? timeString, int dayDiff,bool isLast,) {
     if (timeString == null || timeString.isEmpty || timeString == '--:--') {
       return false;
     }
@@ -2844,7 +2838,6 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     }
   }
 
-  // 检查是否已有详细信息
   bool _hasDetails(int index, bool isStation) {
     if (isStation) {
       return _stationDetails.containsKey(index) &&
@@ -3295,13 +3288,7 @@ class _AddJourneyPageState extends State<AddJourneyPage>
     }
   }
 
-  void _addJourney(
-      int index,
-      Map<String, dynamic> train,
-      bool isStation, {
-        String? fromStation,
-        String? toStation,
-      }) {
+  void _addJourney(int index, Map<String, dynamic> train, bool isStation, {String? fromStation, String? toStation,}) {
     if (_isExpired(index, train, isStation)) {
       _showSnack('车次已过期，无法添加');
       return;
