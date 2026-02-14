@@ -132,7 +132,7 @@ class _LineMapContentState extends State<LineMapContent> {
         final segmentLength = sqrt(dx * dx + dy * dy);
 
         // 如果线段长度超过10单位，视为异常
-        if (segmentLength > 10) {
+        if (segmentLength > 30) {
           return true;
         }
       }
@@ -154,7 +154,7 @@ class _LineMapContentState extends State<LineMapContent> {
         final dy = (currentStation['relativeY'] - prevStation['relativeY']) * 100;
         final segmentLength = sqrt(dx * dx + dy * dy);
 
-        if (segmentLength > 10) {
+        if (segmentLength > 30) {
           anomalies.add(
               '${prevStation['name']} → ${currentStation['name']}: '
                   '${segmentLength.toStringAsFixed(2)}单位'
@@ -248,24 +248,26 @@ class _LineMapContentState extends State<LineMapContent> {
               Text('线路图数据异常'),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('检测到以下异常线段，可能影响显示效果：'),
-              const SizedBox(height: 12),
-              ...anomalies.map((anomaly) =>
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text('• $anomaly'),
-                  )
-              ).toList(),
-              const SizedBox(height: 16),
-              const Text(
-                '请联系技术支持。',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('检测到以下异常线段，可能影响显示效果：'),
+                const SizedBox(height: 12),
+                ...anomalies.map((anomaly) =>
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text('• $anomaly'),
+                    )
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '请联系技术支持。',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -549,20 +551,12 @@ class _LineMapContentState extends State<LineMapContent> {
   }
 
   // 计算相对位置
-  List<Map<String, dynamic>> _calculateRelativePositions(
-    List<Map<String, dynamic>> stations,
-  ) {
+  List<Map<String, dynamic>> _calculateRelativePositions(List<Map<String, dynamic>> stations) {
     if (stations.isEmpty) return [];
+    final validStations = stations.where((s) => s['hasLocation'] == true).toList();
 
-    final validStations = stations
-        .where((s) => s['hasLocation'] == true)
-        .toList();
+    if (validStations.isEmpty) {return _calculateEvenPositions(stations);}
 
-    if (validStations.isEmpty) {
-      return _calculateEvenPositions(stations);
-    }
-
-    // ... 原有的计算逻辑保持不变 ...
     double minLng = double.infinity;
     double maxLng = -double.infinity;
     double minLat = double.infinity;
@@ -915,7 +909,7 @@ class _LineMapContentState extends State<LineMapContent> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(242),
+              color: Colors.white.withAlpha(100),
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: Colors.grey.shade300),
               boxShadow: [
@@ -934,10 +928,10 @@ class _LineMapContentState extends State<LineMapContent> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      name,
+                      '$name站',
                       style: TextStyle(
                         fontSize: 10,
-                        color: hasLocation ? Colors.black : Colors.grey,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -954,15 +948,15 @@ class _LineMapContentState extends State<LineMapContent> {
                 if (city.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    city,
-                    style: const TextStyle(fontSize: 8, color: Colors.grey),
+                    '$city市',
+                    style: const TextStyle(fontSize: 8, color: Colors.black),
                   ),
                 ],
                 if (arrivalTime != null || departureTime != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     '${arrivalTime ?? ''} - ${departureTime ?? ''}',
-                    style: const TextStyle(fontSize: 8, color: Colors.blue),
+                    style: const TextStyle(fontSize: 8, color: Colors.black),
                   ),
                 ],
                 if (!isViaStation) ...[
