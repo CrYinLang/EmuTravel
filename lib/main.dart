@@ -7,8 +7,9 @@ import 'about_page.dart';
 import 'settings.dart';
 import 'update.dart';
 import 'tool_screen.dart';
-
 import 'journey_provider.dart';
+
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -38,15 +39,25 @@ class Vars {
 
   static Future<void> _initializeStationBuild() async {
     if (!_isStationBuildInitialized) {
-      final prefs = await SharedPreferences.getInstance();
+      final directory = await getApplicationDocumentsDirectory();
+      final versionFile = File('${directory.path}/stationVer.json');
+      if (await versionFile.exists()) {
+        final content = await versionFile.readAsString();
+        final jsonData = json.decode(content);
+        if (jsonData['StationBuild'] != null) {
+          _stationBuild = jsonData['StationBuild'].toString();
+          _isStationBuildInitialized = true;
+          return;
+        }
+      }
 
+      final prefs = await SharedPreferences.getInstance();
       if (!prefs.containsKey('stationBuild')) {
         await prefs.setString('stationBuild', defaultStationBuild);
         _stationBuild = defaultStationBuild;
       } else {
         _stationBuild = prefs.getString('stationBuild') ?? defaultStationBuild;
       }
-
       _isStationBuildInitialized = true;
     }
   }
