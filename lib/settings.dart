@@ -16,16 +16,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // 新增的开关状态
-  bool _showTrainImageSystem = true;
-  bool _showTrainImagePersonal = true;
-  bool _showTrainBureauIcon = true;
+  bool _showTrainImage = true;
   bool _showRealTrainMap = true;
   bool _showAutoUpdate = true;
 
-  static const String _trainImageSystemKey = 'show_train_image_system';
-  static const String _trainImagePersonalKey = 'show_train_image_personal';
-  static const String _trainBureauIconKey = 'show_train_bureau_icon';
+  static const String _trainImageKey = 'show_train_image';
   static const String _realTrainMapKey = 'show_real_train_map';
   static const String _showAutoUpdateKey = 'show_auto_update';
 
@@ -35,14 +30,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadSettings();
   }
 
-  // 从 SharedPreferences 加载设置
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      _showTrainImageSystem = prefs.getBool(_trainImageSystemKey) ?? true;
-      _showTrainImagePersonal = prefs.getBool(_trainImagePersonalKey) ?? true;
-      _showTrainBureauIcon = prefs.getBool(_trainBureauIconKey) ?? true;
+      _showTrainImage = prefs.getBool(_trainImageKey) ?? true;
       _showRealTrainMap = prefs.getBool(_realTrainMapKey) ?? true;
       _showAutoUpdate = prefs.getBool(_showAutoUpdateKey) ?? true;
     });
@@ -147,49 +139,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Tool.buildSwitch(
               context: context,
-              title: '显示列车图片(系统)',
-              subtitle: '显示系统提供的列车图片',
-              icon: Icons.photo_library,
-              value: _showTrainImageSystem,
-              onChanged: (bool newValue) async {
-                setState(() {
-                  _showTrainImageSystem = newValue;
-                });
-                await _saveSetting(_trainImageSystemKey, newValue);
-              },
-            ),
-
-            const Divider(height: 1),
-
-            Tool.buildSwitch(
-              context: context,
-              title: '显示列车图片(个人)',
-              subtitle: '显示个人上传的列车图片',
+              title: '显示列车图片',
+              subtitle: '显示列车图片',
               icon: Icons.photo_camera,
-              value: _showTrainImagePersonal,
+              value: _showTrainImage,
               onChanged: (bool newValue) async {
                 setState(() {
-                  _showTrainImagePersonal = newValue;
+                  _showTrainImage = newValue;
                 });
-                await _saveSetting(_trainImagePersonalKey, newValue);
+                await _saveSetting(_trainImageKey, newValue);
               },
             ),
 
-            const Divider(height: 1),
-
-            Tool.buildSwitch(
-              context: context,
-              title: '显示列车路局图标',
-              subtitle: '显示列车所属路局的图标',
-              icon: Icons.account_balance,
-              value: _showTrainBureauIcon,
-              onChanged: (bool newValue) async {
-                setState(() {
-                  _showTrainBureauIcon = newValue;
-                });
-                await _saveSetting(_trainBureauIconKey, newValue);
-              },
-            ),
             const Divider(height: 1),
 
             Tool.buildSwitch(
@@ -214,8 +175,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           icon: Icons.info,
           title: '应用信息/设置',
           children: [
+
             _buildTile(
-              title: '版本',
+              title: '应用版本',
               subtitle: '${Vars.version} | ${Vars.build} | ${Vars.lastUpdate}',
               trailingIcon: Icons.arrow_forward_ios,
               onTap: () => UpdateUI.showUpdateFlow(context),

@@ -120,7 +120,7 @@ class _LineMapContentState extends State<LineMapContent> {
     _loadRouteMapData();
   }
 
-  bool _hasAnomalousSegments() {
+  Future<bool> _hasAnomalousSegments() async {
     for (int i = 1; i < _fullRouteStations.length; i++) {
       final prevStation = _fullRouteStations[i - 1];
       final currentStation = _fullRouteStations[i];
@@ -131,8 +131,9 @@ class _LineMapContentState extends State<LineMapContent> {
         final dy = (currentStation['relativeY'] - prevStation['relativeY']) * 100;
         final segmentLength = sqrt(dx * dx + dy * dy);
 
-        // 如果线段长度超过10单位，视为异常
-        if (segmentLength > 30) {
+        bool isEasy = await _getSetting('show_real_train_map');
+
+        if (segmentLength > 30 && isEasy) {
           return true;
         }
       }
@@ -140,7 +141,6 @@ class _LineMapContentState extends State<LineMapContent> {
     return false;
   }
 
-// 获取异常线段信息
   List<String> _getAnomalousSegmentInfo() {
     final List<String> anomalies = [];
 
@@ -199,9 +199,11 @@ class _LineMapContentState extends State<LineMapContent> {
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_hasAnomalousSegments()) {
-          _showAnomalyAlert();
-        }
+        _hasAnomalousSegments().then((hasAnomaly) {
+          if (hasAnomaly) {
+            _showAnomalyAlert();
+          }
+        });
       });
 
     } catch (e) {
@@ -222,10 +224,9 @@ class _LineMapContentState extends State<LineMapContent> {
           _fullRouteStations = positionedFiltered;
           _filteredStations = positionedFiltered;
           _isLoading = false;
-          _errorMessage = ''; // 清空错误信息，因为使用了后备数据
+          _errorMessage = '';
         });
       } catch (fallbackError) {
-        // 如果后备数据也失败，显示错误
         setState(() {
           _errorMessage = '加载失败: $e';
           _isLoading = false;

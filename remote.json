@@ -1,6 +1,7 @@
 [
   {
-    "operation": "update",
-    "message": ""
+    "operation": "",
+    "message": "",
+    "minVersion": "1120"
   }
 ]

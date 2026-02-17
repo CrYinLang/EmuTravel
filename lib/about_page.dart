@@ -161,6 +161,12 @@ class AboutPage extends StatelessWidget {
           title: '12306',
           description: '联网交路查询,车站数据',
         ),
+        _buildDataSourceItemWithIconData(
+          context: context,
+          icon: Icons.cloud_done,
+          title: 'MoeFactory',
+          description: '车站大屏',
+        ),
       ],
     );
   }

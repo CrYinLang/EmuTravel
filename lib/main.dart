@@ -18,14 +18,18 @@ import 'dart:io';
 bool _isDarkMode = true;
 
 class Vars {
-  static const String lastUpdate = '26-02-14-19-00';
-  static const String version = '1.1.2.0';
-  static const String build = '1120';
-  static const String urlServer ='https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
-  static const String commandServer ='https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
+  static const String lastUpdate = '26-02-16-17-45';
+  static const String version = '1.1.2.1';
+  static const String build = '1121';
+  static const String urlServer =
+      'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
+  static const String commandServer =
+      'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
 
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
-    final response = await http.get(Uri.parse(urlServer)).timeout(const Duration(seconds: 10));
+    final response = await http
+        .get(Uri.parse(urlServer))
+        .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       return json.decode(response.body);
     }
@@ -33,7 +37,9 @@ class Vars {
   }
 
   static Future<Map<String, dynamic>?> fetchCommand() async {
-    final response = await http.get(Uri.parse(commandServer)).timeout(const Duration(seconds: 10));
+    final response = await http
+        .get(Uri.parse(commandServer))
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -125,6 +131,8 @@ class _EmuTravelState extends State<EmuTravel> {
       }
     }
 
+    final minVersion = command['minVersion']?.toString() ?? Vars.build;
+    if (double.parse(minVersion) >= double.parse(Vars.build)) exit(0);
     final operation = command['operation']?.toString() ?? '';
     if (operation.isNotEmpty) {
       _handleOperation(operation);
@@ -161,7 +169,8 @@ class _EmuTravelState extends State<EmuTravel> {
           final remoteBuildNum = int.parse(remoteBuild);
           final currentBuildNum = int.parse(currentBuild);
 
-          if (remoteBuildNum > currentBuildNum && mounted &&
+          if (remoteBuildNum > currentBuildNum &&
+              mounted &&
               navigatorKey.currentContext != null) {
             UpdateUI.showUpdateFlow(navigatorKey.currentContext!);
           }
@@ -183,10 +192,7 @@ class _EmuTravelState extends State<EmuTravel> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  Text(_commandMessage!),
-                ],
+                children: [const SizedBox(height: 8), Text(_commandMessage!)],
               ),
               actions: [
                 TextButton(
@@ -237,15 +243,15 @@ class _EmuTravelState extends State<EmuTravel> {
         home: AnimatedTheme(
           data: _isDarkMode
               ? ThemeData(
-            primarySwatch: Colors.blue,
-            useMaterial3: true,
-            brightness: Brightness.dark,
-          )
+                  primarySwatch: Colors.blue,
+                  useMaterial3: true,
+                  brightness: Brightness.dark,
+                )
               : ThemeData(
-            primarySwatch: Colors.blue,
-            useMaterial3: true,
-            brightness: Brightness.light,
-          ),
+                  primarySwatch: Colors.blue,
+                  useMaterial3: true,
+                  brightness: Brightness.light,
+                ),
           duration: const Duration(milliseconds: 300),
           child: HomePage(themeManager: _themeManager),
         ),
