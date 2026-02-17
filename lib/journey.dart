@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:provider/provider.dart';
 
@@ -69,8 +72,25 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
   Future<void> _loadStations() async {
     setState(() => _loadingStations = true);
     try {
-      final jsonString = await rootBundle.loadString('assets/stations.json');
-      final List<dynamic> stationsList = json.decode(jsonString);
+      List<dynamic> stationsList = [];
+
+      final directory = await getApplicationDocumentsDirectory();
+      final versionFile = File('${directory.path}/stationVer.json');
+      final dataFile = File('${directory.path}/stations.json');
+
+      if (await versionFile.exists() && await dataFile.exists()) {
+        try {
+          final jsonString = await dataFile.readAsString();
+          stationsList = json.decode(jsonString);
+
+        } catch (e) {
+          final jsonString = await rootBundle.loadString('assets/stations.json');
+          stationsList = json.decode(jsonString);
+        }
+      } else {
+        final jsonString = await rootBundle.loadString('assets/stations.json');
+        stationsList = json.decode(jsonString);
+      }
 
       final Map<String, String> nameMap = {};
       for (var station in stationsList) {

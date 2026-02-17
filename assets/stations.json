@@ -40342,5 +40342,17 @@
     "city": "内江",
     "address": "内江·资中西站",
     "location": "104.613572,29.892377"
+  },
+  {
+    "code": "CrYinLang",
+    "name": "银狼测试",
+    "telecode": "CYL",
+    "pinyin": "cryinlang",
+    "short_code": "cyl",
+    "order": "2705",
+    "area_code": "7990",
+    "city": "台湾",
+    "address": "台北·台北站",
+    "location": "121.5209623108612,25.04435811165784"
   }
 ]

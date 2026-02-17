@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 import 'main.dart';
 import 'tool.dart';
@@ -9,7 +11,7 @@ class UpdateService {
   static Future<Map<String, dynamic>?> checkForUpdate() async {
     try {
       final response = await http
-          .get(Uri.parse(Vars.urlServer))
+          .get(Uri.parse('https://gitee.com/CrYinLang/EmuTravel/raw/master/${Vars.urlServer}.json'))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -161,7 +163,7 @@ class AppUpdateResultDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(resultIcon, size: 60, color: resultColor),
+                Icon(resultIcon, size: 50, color: resultColor),
                 const SizedBox(height: 20),
                 Text(
                   hasUpdate ? '发现新版本' : '检查完成',
@@ -292,6 +294,7 @@ class StationUpdateResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentBuild = int.tryParse(Vars.stationBuild) ?? 42;
+    int remoteBuild = 42;
 
     bool hasUpdate = false;
     String resultMessage = '';
@@ -303,12 +306,11 @@ class StationUpdateResultDialog extends StatelessWidget {
       resultColor = Colors.red;
       resultIcon = Icons.error;
     } else if (versionInfo != null) {
-      final remoteBuild = int.tryParse(versionInfo!['StationBuild'].toString()) ?? 42;
+      remoteBuild = int.tryParse(versionInfo!['StationBuild'].toString()) ?? 42;
 
       if (remoteBuild > currentBuild) {
         hasUpdate = true;
-        resultMessage ='$currentBuild --> $remoteBuild\n';
-        resultColor = Colors.orange;
+        resultColor = Colors.green;
         resultIcon = Icons.file_copy;
       }
     } else {
@@ -329,7 +331,7 @@ class StationUpdateResultDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(resultIcon, size: 60, color: resultColor),
+                Icon(resultIcon, size: 50, color: resultColor),
                 const SizedBox(height: 20),
                 Text(
                   hasUpdate ? '发现数据库新版本' : '已是最新版本',
@@ -338,6 +340,30 @@ class StationUpdateResultDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
+                if (hasUpdate)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$currentBuild',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.arrow_forward, size: 20, color: Theme.of(context).colorScheme.onSurface),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$remoteBuild',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  )
+                else
                   Text(
                     resultMessage,
                     style: TextStyle(
@@ -353,8 +379,60 @@ class StationUpdateResultDialog extends StatelessWidget {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
+                          onPressed: () async {
+                            // 显示下载进度弹窗
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (_) => const _DownloadingDialog(),
+                            );
+
+                            try {
+                              String stationDataUrl = 'https://gitee.com/CrYinLang/EmuTravel/raw/master/${Vars.stationData}.json';
+
+                              // 下载文件内容
+                              final response = await http.get(Uri.parse(stationDataUrl));
+
+                              if (response.statusCode == 200) {
+                                final directory = await getApplicationDocumentsDirectory();
+
+                                final file = File('${directory.path}/stations.json');
+                                await file.writeAsString(response.body);
+
+                                final versionFile = File('${directory.path}/stationVer.json');
+                                final versionData = {
+                                  "StationBuild": remoteBuild.toString(),
+                                  "file": "stations.json"
+                                };
+                                await versionFile.writeAsString(json.encode(versionData));
+
+                                if (context.mounted) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                  Navigator.pop(context);
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('数据库更新成功！'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } else {
+                                throw Exception('下载失败: ${response.statusCode}');
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                Navigator.of(context, rootNavigator: true).pop(); // 关闭下载弹窗
+
+                                // 显示错误提示
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('更新失败: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                           label: const Text('升级', style: TextStyle(fontSize: 14)),
                           style: ElevatedButton.styleFrom(
@@ -395,6 +473,33 @@ class StationUpdateResultDialog extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ================= 下载中弹窗 =================
+class _DownloadingDialog extends StatelessWidget {
+  const _DownloadingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: const Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: CircularProgressIndicator(strokeWidth: 4),
+            ),
+            SizedBox(height: 20),
+            Text('正在下载数据库文件...', style: TextStyle(fontSize: 16)),
+          ],
         ),
       ),
     );

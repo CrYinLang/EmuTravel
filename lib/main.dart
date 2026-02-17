@@ -21,10 +21,9 @@ class Vars {
   static const String lastUpdate = '26-02-16-17-45';
   static const String version = '1.1.2.1';
   static const String build = '1121';
-  static const String urlServer =
-      'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
-  static const String commandServer =
-      'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
+  static const String urlServer = 'version';
+  static const String commandServer = 'remote';
+  static const String stationData = 'assets/stations';
   static const String defaultStationBuild = '42';
 
   static String _stationBuild = defaultStationBuild;
@@ -63,7 +62,11 @@ class Vars {
 
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
     final response = await http
-        .get(Uri.parse(urlServer))
+        .get(
+          Uri.parse(
+            'https://gitee.com/CrYinLang/EmuTravel/raw/master/$urlServer.json',
+          ),
+        )
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       return json.decode(response.body);
@@ -73,7 +76,11 @@ class Vars {
 
   static Future<Map<String, dynamic>?> fetchCommand() async {
     final response = await http
-        .get(Uri.parse(commandServer))
+        .get(
+          Uri.parse(
+            'https://gitee.com/CrYinLang/EmuTravel/raw/master/$commandServer.json',
+          ),
+        )
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
