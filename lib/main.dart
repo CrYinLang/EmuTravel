@@ -25,6 +25,41 @@ class Vars {
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
   static const String commandServer =
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
+  static const String _defaultStationBuild = '42';
+
+  static String _stationBuild = _defaultStationBuild;
+  static bool _isStationBuildInitialized = false;
+
+  static String get stationBuild {
+    if (!_isStationBuildInitialized) {
+      _initializeStationBuild();
+    }
+    return _stationBuild;
+  }
+
+  static Future<void> _initializeStationBuild() async {
+    if (!_isStationBuildInitialized) {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (!prefs.containsKey('stationBuild')) {
+        await prefs.setString('stationBuild', _defaultStationBuild);
+        _stationBuild = _defaultStationBuild;
+      } else {
+        _stationBuild = prefs.getString('stationBuild') ?? _defaultStationBuild;
+      }
+
+      _isStationBuildInitialized = true;
+    }
+  }
+
+  static Future<void> setStationBuild(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('stationBuild', value);
+    _stationBuild = value;
+    if (!_isStationBuildInitialized) {
+      _isStationBuildInitialized = true;
+    }
+  }
 
   static Future<Map<String, dynamic>?> fetchVersionInfo() async {
     final response = await http
@@ -53,7 +88,9 @@ class Vars {
   }
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Vars._initializeStationBuild();
   runApp(const EmuTravel());
 }
 

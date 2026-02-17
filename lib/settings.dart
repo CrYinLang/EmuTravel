@@ -80,7 +80,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 构建设置区块的方法
   Widget _buildSection({
     required IconData icon,
     required String title,
@@ -179,6 +178,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildTile(
               title: '应用版本',
               subtitle: '${Vars.version} | ${Vars.build} | ${Vars.lastUpdate}',
+              trailingIcon: Icons.arrow_forward_ios,
+              onTap: () => UpdateUI.showUpdateFlow(context),
+            ),
+
+            const Divider(height: 1),
+
+            _buildTile(
+              title: '车站数据版本',
+              subtitle: 'V${Vars.stationBuild}',
               trailingIcon: Icons.arrow_forward_ios,
               onTap: () => UpdateUI.showUpdateFlow(context),
             ),
