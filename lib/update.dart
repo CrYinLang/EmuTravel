@@ -25,7 +25,8 @@ class UpdateService {
 
 /// ================= 对外调用入口 =================
 class UpdateUI {
-  static Future<void> showUpdateFlow(BuildContext context) async {
+
+  static Future<void> showAppUpdateFlow(BuildContext context) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -40,7 +41,26 @@ class UpdateUI {
 
     showDialog(
       context: context,
-      builder: (_) => UpdateResultDialog(versionInfo: versionInfo),
+      builder: (_) => AppUpdateResultDialog(versionInfo: versionInfo),
+    );
+  }
+
+  static Future<void> showStationUpdateFlow(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _CheckingDialog(),
+    );
+
+    final versionInfo = await UpdateService.checkForUpdate();
+
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (_) => StationUpdateResultDialog(versionInfo: versionInfo),
     );
   }
 }
@@ -73,29 +93,10 @@ class _CheckingDialog extends StatelessWidget {
 }
 
 /// ================= 更新结果弹窗 =================
-class UpdateResultDialog extends StatelessWidget {
+class AppUpdateResultDialog extends StatelessWidget {
   final Map<String, dynamic>? versionInfo;
 
-  const UpdateResultDialog({super.key, required this.versionInfo});
-
-  // 添加链接为空时的提示对话框
-  void _showNoLinkDialog(BuildContext context, String linkName) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('提示'),
-          content: Text('$linkName暂不可用，请选择其他下载方式'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('确定'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  const AppUpdateResultDialog({super.key, required this.versionInfo});
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +123,6 @@ class UpdateResultDialog extends StatelessWidget {
       newVersion = versionInfo!['Version'];
       updateTime = versionInfo!['LastUpdate'];
 
-      // 修正字段名：根据你的JSON结构
       githubUrl = versionInfo!['github'];
       giteeUrl = versionInfo!['gitee'];
       qqUrl = versionInfo!['qq'];
@@ -191,7 +191,6 @@ class UpdateResultDialog extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 if (hasUpdate) ...[
-                  // 第一行：蓝色QQ群 + 绿色Gitee
                   Row(
                     children: [
                       Expanded(
@@ -200,8 +199,6 @@ class UpdateResultDialog extends StatelessWidget {
                             Navigator.pop(context);
                             if (qqUrl != null && qqUrl.isNotEmpty) {
                               Tool.launchBrowser(context, qqUrl);
-                            } else {
-                              _showNoLinkDialog(context, 'QQ群链接');
                             }
                           },
                           icon: const Icon(Icons.group, size: 20),
@@ -220,8 +217,6 @@ class UpdateResultDialog extends StatelessWidget {
                             Navigator.pop(context);
                             if (giteeUrl != null && giteeUrl.isNotEmpty) {
                               Tool.launchBrowser(context, giteeUrl);
-                            } else {
-                              _showNoLinkDialog(context, 'Gitee链接');
                             }
                           },
                           icon: const Icon(Icons.code, size: 20),
@@ -237,7 +232,6 @@ class UpdateResultDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // 第二行：灰色Github + 关闭按钮
                   Row(
                     children: [
                       Expanded(
@@ -246,8 +240,6 @@ class UpdateResultDialog extends StatelessWidget {
                             Navigator.pop(context);
                             if (githubUrl != null && githubUrl.isNotEmpty) {
                               Tool.launchBrowser(context, githubUrl);
-                            } else {
-                              _showNoLinkDialog(context, 'Github链接');
                             }
                           },
                           icon: const Icon(Icons.cloud_download, size: 20),
@@ -272,7 +264,123 @@ class UpdateResultDialog extends StatelessWidget {
                     ],
                   ),
                 ] else ...[
-                  // 没有更新时的关闭按钮
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('关闭', style: TextStyle(fontSize: 14)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class StationUpdateResultDialog extends StatelessWidget {
+  final Map<String, dynamic>? versionInfo;
+
+  const StationUpdateResultDialog({super.key, required this.versionInfo});
+
+  @override
+  Widget build(BuildContext context) {
+    final currentBuild = int.tryParse(Vars.stationBuild) ?? 42;
+
+    bool hasUpdate = false;
+    String resultMessage = '';
+    Color resultColor = Colors.green;
+    IconData resultIcon = Icons.check_circle;
+
+    if (versionInfo != null && versionInfo!.containsKey('error')) {
+      resultMessage = '检查更新失败: ${versionInfo!['error']}';
+      resultColor = Colors.red;
+      resultIcon = Icons.error;
+    } else if (versionInfo != null) {
+      final remoteBuild = int.tryParse(versionInfo!['StationBuild'].toString()) ?? 42;
+
+      if (remoteBuild > currentBuild) {
+        hasUpdate = true;
+        resultMessage ='$currentBuild --> $remoteBuild\n';
+        resultColor = Colors.orange;
+        resultIcon = Icons.file_copy;
+      }
+    } else {
+      resultMessage = '检查更新失败: 未知错误';
+      resultColor = Colors.red;
+      resultIcon = Icons.error;
+    }
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(resultIcon, size: 60, color: resultColor),
+                const SizedBox(height: 20),
+                Text(
+                  hasUpdate ? '发现数据库新版本' : '已是最新版本',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+
+                  Text(
+                    resultMessage,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
+
+                if (hasUpdate) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          label: const Text('升级', style: TextStyle(fontSize: 14)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('关闭', style: TextStyle(fontSize: 14)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(

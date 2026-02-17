@@ -179,7 +179,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: '应用版本',
               subtitle: '${Vars.version} | ${Vars.build} | ${Vars.lastUpdate}',
               trailingIcon: Icons.arrow_forward_ios,
-              onTap: () => UpdateUI.showUpdateFlow(context),
+              onTap: () => UpdateUI.showAppUpdateFlow(context),
             ),
 
             const Divider(height: 1),
@@ -188,7 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: '车站数据版本',
               subtitle: 'V${Vars.stationBuild}',
               trailingIcon: Icons.arrow_forward_ios,
-              onTap: () => UpdateUI.showUpdateFlow(context),
+              onTap: () => UpdateUI.showStationUpdateFlow(context),
             ),
 
             const Divider(height: 1),

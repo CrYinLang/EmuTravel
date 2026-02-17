@@ -25,9 +25,9 @@ class Vars {
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/version.json';
   static const String commandServer =
       'https://gitee.com/CrYinLang/EmuTravel/raw/master/remote.json';
-  static const String _defaultStationBuild = '42';
+  static const String defaultStationBuild = '42';
 
-  static String _stationBuild = _defaultStationBuild;
+  static String _stationBuild = defaultStationBuild;
   static bool _isStationBuildInitialized = false;
 
   static String get stationBuild {
@@ -42,10 +42,10 @@ class Vars {
       final prefs = await SharedPreferences.getInstance();
 
       if (!prefs.containsKey('stationBuild')) {
-        await prefs.setString('stationBuild', _defaultStationBuild);
-        _stationBuild = _defaultStationBuild;
+        await prefs.setString('stationBuild', defaultStationBuild);
+        _stationBuild = defaultStationBuild;
       } else {
-        _stationBuild = prefs.getString('stationBuild') ?? _defaultStationBuild;
+        _stationBuild = prefs.getString('stationBuild') ?? defaultStationBuild;
       }
 
       _isStationBuildInitialized = true;
@@ -209,7 +209,7 @@ class _EmuTravelState extends State<EmuTravel> {
           if (remoteBuildNum > currentBuildNum &&
               mounted &&
               navigatorKey.currentContext != null) {
-            UpdateUI.showUpdateFlow(navigatorKey.currentContext!);
+            UpdateUI.showAppUpdateFlow(navigatorKey.currentContext!);
           }
         }
       }
