@@ -56,6 +56,21 @@ class _StationScreenState extends State<StationScreen> {
   int _currentPage = 1;
   int _totalPages = 1;
   final int _pageSize = 40;
+  int _directionMode = 0;
+
+  void _handleDirectionChange(int mode) {
+    setState(() {
+      _directionMode = mode;
+      _currentPageData.clear();
+      _dataLoaded = false;
+      _currentPage = 1;
+      _totalPages = 1;
+    });
+
+    if (_selectedStationCode != null) {
+      _fetchPageData(1);
+    }
+  }
 
   void _showStationSelector() {
     showModalBottomSheet(
@@ -85,28 +100,27 @@ class _StationScreenState extends State<StationScreen> {
 
     setState(() {
       _loading = true;
-      _currentPageData.clear(); // 每次获取新页时清空当前数据
+      _currentPageData.clear();
     });
 
     try {
       int cursor = (page - 1) * _pageSize;
 
-      // 同时获取出发和到达方向数据
-      final List<dynamic> allDirectionData = [];
-      await Future.wait([
-        _fetchDirectionData('D', cursor, allDirectionData),
-        _fetchDirectionData('A', cursor, allDirectionData),
-      ]);
+      // 只获取当前选择方向的数据
+      final String direction = _directionMode == 0 ? 'D' : 'A';
 
-      // 对合并后的数据进行排序
-      allDirectionData.sort((a, b) {
+      final List<dynamic> directionData = [];
+      await _fetchDirectionData(direction, cursor, directionData);
+
+      // 对数据进行排序
+      directionData.sort((a, b) {
         final timeA = a['actualTime'] ?? a['scheduledTime'] ?? '';
         final timeB = b['actualTime'] ?? b['scheduledTime'] ?? '';
         return timeA.compareTo(timeB);
       });
 
       setState(() {
-        _currentPageData = allDirectionData;
+        _currentPageData = directionData;
         _dataLoaded = true;
         _currentPage = page;
       });
@@ -120,20 +134,24 @@ class _StationScreenState extends State<StationScreen> {
   }
 
   // 获取特定方向的数据
-  Future<void> _fetchDirectionData(String direction, int cursor, List<dynamic> resultList) async {
-    final url = Uri.parse('https://rail.moefactory.com/api/station/getBigScreenInfo');
+  Future<void> _fetchDirectionData(
+    String direction,
+    int cursor,
+    List<dynamic> resultList,
+  ) async {
+    final url = Uri.parse(
+      'https://rail.moefactory.com/api/station/getBigScreenInfo',
+    );
 
     try {
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: {
           'direction': direction,
           'stationName': _selectedStationName,
           'cursor': cursor.toString(),
-          'count': _pageSize.toString(),
+          'count': '15',
         },
       );
 
@@ -172,7 +190,9 @@ class _StationScreenState extends State<StationScreen> {
         children: [
           // 上一页按钮
           ElevatedButton(
-            onPressed: _currentPage <= 1 ? null : () => _fetchPageData(_currentPage - 1),
+            onPressed: _currentPage <= 1
+                ? null
+                : () => _fetchPageData(_currentPage - 1),
             child: const Text('上一页'),
           ),
           const SizedBox(width: 20),
@@ -186,7 +206,9 @@ class _StationScreenState extends State<StationScreen> {
 
           // 下一页按钮
           ElevatedButton(
-            onPressed: _currentPage >= _totalPages ? null : () => _fetchPageData(_currentPage + 1),
+            onPressed: _currentPage >= _totalPages
+                ? null
+                : () => _fetchPageData(_currentPage + 1),
             child: const Text('下一页'),
           ),
         ],
@@ -195,18 +217,15 @@ class _StationScreenState extends State<StationScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   // 构建车次信息卡片
   Widget _buildTrainCard(Map<String, dynamic> train) {
     final status = train['status'] ?? 0;
     final delayMinutes = train['delayMinutes'] ?? 0;
-
-    // 只显示特定状态的车次
-    if (status != 1 && status != 2) { // 1=晚点/候车, 2=正在检票
-      return const SizedBox.shrink();
-    }
 
     Color statusColor = Theme.of(context).colorScheme.onSurface;
     String statusText = '正在候车';
@@ -233,17 +252,21 @@ class _StationScreenState extends State<StationScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                if (_directionMode == 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -254,11 +277,17 @@ class _StationScreenState extends State<StationScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.schedule, size: 16, color: Theme.of(context).colorScheme.onSurface),
+                Icon(
+                  Icons.schedule,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${train['scheduledTime']}',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
                 if (delayMinutes > 0) ...[
                   const SizedBox(width: 8),
@@ -280,32 +309,44 @@ class _StationScreenState extends State<StationScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.meeting_room, size: 16, color: Theme.of(context).colorScheme.onSurface),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    '候车室: ${train['waitingRoom']}',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            if (_directionMode == 0) const SizedBox(height: 8),
+            if (_directionMode == 0)
+              Row(
+                children: [
+                  Icon(
+                    Icons.meeting_room,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.exit_to_app, size: 16, color: Theme.of(context).colorScheme.onSurface),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    '检票口: ${train['checkoutName']}',
-                    style: TextStyle(color: Colors.green),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '候车室: ${train['waitingRoom']}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            if (_directionMode == 0) const SizedBox(height: 8),
+            if (_directionMode == 0)
+              Row(
+                children: [
+                  Icon(
+                    Icons.exit_to_app,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '检票口: ${train['checkoutName']}',
+                      style: TextStyle(color: Colors.green),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -318,7 +359,6 @@ class _StationScreenState extends State<StationScreen> {
       appBar: AppBar(title: const Text('车站大屏')),
       body: Column(
         children: [
-          // 单个车站选择器
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: GestureDetector(
@@ -366,7 +406,6 @@ class _StationScreenState extends State<StationScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
 
           // 显示按钮
           if (_selectedStationCode != null && !_dataLoaded)
@@ -386,25 +425,58 @@ class _StationScreenState extends State<StationScreen> {
                   ),
                   child: _loading
                       ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(Colors.white),
-                    ),
-                  )
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
                       : const Text(
-                    '显示车站大屏',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                          '显示车站大屏',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ),
 
-          // 分页控制器
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                  value: 0,
+                  label: Text('出发/经过', style: TextStyle(fontSize: 16)),
+                  icon: Icon(Icons.location_on, size: 20),
+                ),
+                ButtonSegment(
+                  value: 1,
+                  label: Text('终到/终点', style: TextStyle(fontSize: 16)),
+                  icon: Icon(Icons.location_on, size: 20),
+                ),
+              ],
+              selected: {_directionMode},
+              onSelectionChanged: (Set<int> s) =>
+                  _handleDirectionChange(s.first),
+              style: SegmentedButton.styleFrom(
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                selectedBackgroundColor: Theme.of(context).colorScheme.primary,
+                selectedForegroundColor: Theme.of(
+                  context,
+                ).colorScheme.onPrimary,
+                visualDensity: VisualDensity.compact,
+                minimumSize: const Size(0, 56),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+              ),
+            ),
+          ),
+
           if (_dataLoaded) _buildPaginationControls(),
 
           // 数据展示区域
@@ -412,81 +484,27 @@ class _StationScreenState extends State<StationScreen> {
             Expanded(
               child: _currentPageData.isEmpty
                   ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.train, size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    Text(
-                      '暂无车次信息',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).hintColor,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.train, size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          Text(
+                            '暂无车次信息',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).hintColor,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              )
+                    )
                   : ListView.builder(
-                itemCount: _currentPageData.length,
-                itemBuilder: (context, index) {
-                  return _buildTrainCard(_currentPageData[index]);
-                },
-              ),
-            )
-          else if (_selectedStationCode != null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.tv, size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    Text(
-                      '车站大屏功能',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).hintColor,
-                      ),
+                      itemCount: _currentPageData.length,
+                      itemBuilder: (context, index) {
+                        return _buildTrainCard(_currentPageData[index]);
+                      },
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '请点击按钮查询车次信息',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).hintColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.tv, size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    Text(
-                      '车站大屏功能',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).hintColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '请先选择车站',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).hintColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
         ],
       ),
@@ -550,7 +568,9 @@ class _StationSelectorState extends State<StationSelector> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _onSearchChanged() {
@@ -641,68 +661,68 @@ class _StationSelectorState extends State<StationSelector> {
                 ? const Center(child: CircularProgressIndicator())
                 : _filtered.isEmpty
                 ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.train, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    '未找到相关车站',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).hintColor,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.train, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          '未找到相关车站',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            )
+                  )
                 : ListView.builder(
-              itemCount: _filtered.length,
-              itemBuilder: (context, index) {
-                final station = _filtered[index];
-                final code = station['code'] ?? station['telecode'] ?? '';
-                final name = station['name'] ?? '';
-                final telecode = station['telecode'] ?? '';
-                final city = station['city'] ?? '';
-                final selected = code == widget.selectedCode;
-                return ListTile(
-                  leading: Icon(
-                    Icons.train,
-                    color: selected
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).hintColor,
+                    itemCount: _filtered.length,
+                    itemBuilder: (context, index) {
+                      final station = _filtered[index];
+                      final code = station['code'] ?? station['telecode'] ?? '';
+                      final name = station['name'] ?? '';
+                      final telecode = station['telecode'] ?? '';
+                      final city = station['city'] ?? '';
+                      final selected = code == widget.selectedCode;
+                      return ListTile(
+                        leading: Icon(
+                          Icons.fireplace_outlined,
+                          color: selected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).hintColor,
+                        ),
+                        title: Text(
+                          '$name站',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: selected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '$city市 电报码($telecode)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                        trailing: selected
+                            ? const Icon(Icons.check_circle, color: Colors.blue)
+                            : null,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          widget.onSelected({
+                            'code': code,
+                            'name': name,
+                            'telecode': telecode,
+                            'city': city,
+                          });
+                        },
+                      );
+                    },
                   ),
-                  title: Text(
-                    '$name站',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: selected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '$city市 电报码($telecode)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).hintColor,
-                    ),
-                  ),
-                  trailing: selected
-                      ? const Icon(Icons.check_circle, color: Colors.blue)
-                      : null,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    widget.onSelected({
-                      'code': code,
-                      'name': name,
-                      'telecode': telecode,
-                      'city': city,
-                    });
-                  },
-                );
-              },
-            ),
           ),
         ],
       ),

@@ -2912,7 +2912,6 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
                   _showSnack('下车站必须在上车站之后');
                 }
               } else {
-                // 已经选择了两个车站，重新选择上车站
                 selectedFrom = stationName;
                 selectedTo = null;
               }
@@ -2935,7 +2934,6 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
               (s as Map<String, dynamic>)['stationName'] == selectedFrom);
               return index > fromIndex;
             } else {
-              // 已经选择了两个车站，所有未过期车站都可重新选择
               return true;
             }
           }

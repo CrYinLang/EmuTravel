@@ -27,6 +27,8 @@ class Vars {
   static const String stationData = 'assets/stations';
   static const String defaultStationBuild = '42';
 
+  ///////////////////////////////////////////////////////
+
   static String _stationBuild = defaultStationBuild;
   static bool _isStationBuildInitialized = false;
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:restart_app/restart_app.dart';
 
 import 'main.dart';
 import 'tool.dart';
@@ -345,7 +346,7 @@ class StationUpdateResultDialog extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '$currentBuild',
+                        'V$currentBuild',
                         style: TextStyle(
                           fontSize: 16,
                           color: Theme.of(context).colorScheme.onSurface,
@@ -355,7 +356,7 @@ class StationUpdateResultDialog extends StatelessWidget {
                       Icon(Icons.arrow_forward, size: 20, color: Theme.of(context).colorScheme.onSurface),
                       const SizedBox(width: 8),
                       Text(
-                        '$remoteBuild',
+                        'V$remoteBuild',
                         style: TextStyle(
                           fontSize: 16,
                           color: Theme.of(context).colorScheme.onSurface,
@@ -363,7 +364,7 @@ class StationUpdateResultDialog extends StatelessWidget {
                       ),
                     ],
                   )
-                else
+                else if (resultMessage.isNotEmpty)
                   Text(
                     resultMessage,
                     style: TextStyle(
@@ -372,7 +373,7 @@ class StationUpdateResultDialog extends StatelessWidget {
                     ),
                   ),
 
-                const SizedBox(height: 24),
+                if (resultMessage.isNotEmpty) const SizedBox(height: 24),
 
                 if (hasUpdate) ...[
                   Row(
@@ -380,7 +381,6 @@ class StationUpdateResultDialog extends StatelessWidget {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            // 显示下载进度弹窗
                             showDialog(
                               context: context,
                               barrierDismissible: false,
@@ -396,7 +396,7 @@ class StationUpdateResultDialog extends StatelessWidget {
                               if (response.statusCode == 200) {
                                 final directory = await getApplicationDocumentsDirectory();
 
-                                final file = File('${directory.path}/stations.json');
+                                final file = File('${directory.path}/statiosns.json');
                                 await file.writeAsString(response.body);
 
                                 final versionFile = File('${directory.path}/stationVer.json');
@@ -412,10 +412,11 @@ class StationUpdateResultDialog extends StatelessWidget {
 
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('数据库更新成功！'),
-                                      backgroundColor: Colors.green,
+                                      content: Text('数据库更新成功！即将重启软件'),
                                     ),
                                   );
+                                  await Future.delayed(const Duration(seconds: 2));
+                                  Restart.restartApp();
                                 }
                               } else {
                                 throw Exception('下载失败: ${response.statusCode}');

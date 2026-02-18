@@ -40342,5 +40342,12 @@
     "city": "内江",
     "address": "内江·资中西站",
     "location": "104.613572,29.892377"
+  },
+  {
+    "code": "cyl",
+    "name": "银狼测试",
+    "telecode": "CYL",
+    "pinyin": "cryinlang",
+    "city": "台北"
   }
 ]

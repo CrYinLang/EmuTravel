@@ -673,7 +673,7 @@ class _StationSelectorModalState extends State<StationSelectorModal> {
                       final selected = code == widget.selectedCode;
                       return ListTile(
                         leading: Icon(
-                          Icons.train,
+                          Icons.fireplace_outlined,
                           color: selected
                               ? Theme.of(context).colorScheme.primary
                               : Theme.of(context).hintColor,
