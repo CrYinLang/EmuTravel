@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:restart_app/restart_app.dart';
 
 import 'main.dart';
 import 'tool.dart';
@@ -405,6 +404,7 @@ class StationUpdateResultDialog extends StatelessWidget {
                                   "file": "stations.json"
                                 };
                                 await versionFile.writeAsString(json.encode(versionData));
+                                await Vars.setStationBuild(remoteBuild.toString());
 
                                 if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
@@ -412,11 +412,9 @@ class StationUpdateResultDialog extends StatelessWidget {
 
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('数据库更新成功！即将重启软件'),
+                                      content: Text('车站数据更新成功！'),
                                     ),
                                   );
-                                  await Future.delayed(const Duration(seconds: 2));
-                                  Restart.restartApp();
                                 }
                               } else {
                                 throw Exception('下载失败: ${response.statusCode}');
