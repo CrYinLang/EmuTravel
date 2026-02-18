@@ -25,7 +25,7 @@ class Vars {
   static const String urlServer = 'version';
   static const String commandServer = 'remote';
   static const String stationData = 'assets/stations';
-  static String defaultStationBuild = '42';
+  static String defaultStationBuild = '10';
 
   ///////////////////////////////////////////////////////
 
