@@ -17,7 +17,6 @@ import 'dart:convert';
 import 'dart:io';
 
 bool _isDarkMode = true;
-
 class Vars {
   static const String lastUpdate = '26-02-16-17-45';
   static const String version = '1.1.2.1';

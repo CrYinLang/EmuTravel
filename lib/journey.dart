@@ -338,22 +338,83 @@ class _AddJourneyPageState extends State<AddJourneyPage> with SingleTickerProvid
           4, 6)}-${_formattedDate.substring(6, 8)}';
 
       // 同时请求余票查询和价格查询
-      final ticketFuture = http.get(
-        Uri.parse(
-          'https://kyfw.12306.cn/otn/leftTicket/queryG?leftTicketDTO.train_date=$stationDay&leftTicketDTO.from_station=$_fromCode&leftTicketDTO.to_station=$_toCode&purpose_codes=ADULT',
-        ),
-        headers: _getApiHeaders(),
-      );
+      if (_fromCode != "CYL") {
+        final ticketFuture = http.get(
+          Uri.parse(
+            'https://kyfw.12306.cn/otn/leftTicket/queryG?leftTicketDTO.train_date=$stationDay&leftTicketDTO.from_station=$_fromCode&leftTicketDTO.to_station=$_toCode&purpose_codes=ADULT',
+          ),
+          headers: _getApiHeaders(),
+        );
 
-      final priceFuture = http.get(
-        Uri.parse(
-          'https://kyfw.12306.cn/otn/leftTicketPrice/queryAllPublicPrice?leftTicketDTO.train_date=$stationDay&leftTicketDTO.from_station=$_fromCode&leftTicketDTO.to_station=$_toCode&purpose_codes=ADULT',
-        ),
-        headers: _getApiHeaders(),
-      );
+        final priceFuture = http.get(
+          Uri.parse(
+            'https://kyfw.12306.cn/otn/leftTicketPrice/queryAllPublicPrice?leftTicketDTO.train_date=$stationDay&leftTicketDTO.from_station=$_fromCode&leftTicketDTO.to_station=$_toCode&purpose_codes=ADULT',
+          ),
+          headers: _getApiHeaders(),
+        );
 
-      // 等待两个请求完成
-      final responses = await Future.wait([ticketFuture, priceFuture]);
+        // 等待两个请求完成
+        final responses = await Future.wait([ticketFuture, priceFuture]);
+      }else{
+        // 模拟车次数据
+        final List<Map<String, dynamic>> mockTrains = [
+          {
+            'trainNo': 'G1234',
+            'trainType': '高铁',
+            'fromStation': 'CYL',
+            'toStation': _toCode,
+            'departureTime': '08:30',
+            'arrivalTime': '12:45',
+            'duration': '4小时15分',
+            'businessSeat': '有',
+            'firstSeat': '有',
+            'secondSeat': '有',
+            'businessPrice': '588.0',
+            'firstPrice': '384.0',
+            'secondPrice': '245.0',
+            'noSeat': '无',
+            'noSeatPrice': '0.0',
+          },
+          {
+            'trainNo': 'D5678',
+            'trainType': '动车',
+            'fromStation': 'CYL',
+            'toStation': _toCode,
+            'departureTime': '14:20',
+            'arrivalTime': '19:10',
+            'duration': '4小时50分',
+            'businessSeat': '有',
+            'firstSeat': '有',
+            'secondSeat': '有',
+            'businessPrice': '432.0',
+            'firstPrice': '286.0',
+            'secondPrice': '183.0',
+            'noSeat': '无',
+            'noSeatPrice': '0.0',
+          },
+          {
+            'trainNo': 'K9012',
+            'trainType': '快速',
+            'fromStation': 'CYL',
+            'toStation': _toCode,
+            'departureTime': '22:15',
+            'arrivalTime': '次日06:30',
+            'duration': '8小时15分',
+            'hardSeat': '有',
+            'hardSleeper': '有',
+            'softSleeper': '有',
+            'hardSeatPrice': '98.0',
+            'hardSleeperPrice': '186.0',
+            'softSleeperPrice': '285.0',
+          }
+        ];
+
+        setState(() => _stationResults = mockTrains);
+
+        _showSnack('找到 ${mockTrains.length} 条模拟结果（CYL站测试数据）');
+        setState(() => _loading = false);
+        return;
+      }
       final ticketResponse = responses[0];
       final priceResponse = responses[1];
 
